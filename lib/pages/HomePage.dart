@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart'; // For location services
+import 'package:provider/provider.dart'; // Import provider package
+import '/providers/Location_provider.dart'; // Import LocationProvider
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -21,10 +25,22 @@ class _HomepageState extends State<Homepage> {
 
   // List of avatars with only 4 items
   List<Map<String, String>> _avatars = [
-    {'image': 'assets/icons/avatar1.png', 'label': 'John'},
-    {'image': 'assets/icons/avatar2.png', 'label': 'Anna'},
-    {'image': 'assets/icons/avatar3.png', 'label': 'Mark'},
-    {'image': 'assets/icons/avatar4.png', 'label': 'Lily'},
+    {'image': 'assets/icons/appointment.png', 'label': 'Book Appointment'},
+    {'image': 'assets/icons/tests.png', 'label': 'Book Tests'},
+    {'image': 'assets/icons/heart-tracker.png', 'label': 'Health Tracker'},
+    {'image': 'assets/icons/medicine.png', 'label': 'Medications'},
+  ];
+
+  // Specialist types for GridView
+  List<Map<String, String>> _specialists = [
+    {'image': 'assets/icons/heart.png', 'label': 'Cardiology'},
+    {'image': 'assets/icons/hair.png', 'label': 'Dermatology'},
+    {'image': 'assets/icons/brain.png', 'label': 'Neurology'},
+    {'image': 'assets/icons/orthopedics.png', 'label': 'Orthopedics'},
+    {'image': 'assets/icons/pediatric.png', 'label': 'Pediatrics'},
+    {'image': 'assets/icons/stomach.png', 'label': 'Gastroentrology'},
+    {'image': 'assets/icons/x-rays.png', 'label': 'Radiology'},
+    {'image': 'assets/icons/kidney.png', 'label': 'Urology'},
   ];
 
   @override
@@ -34,7 +50,6 @@ class _HomepageState extends State<Homepage> {
     _startCyclingPlaceholders(); // Start cycling through search placeholders
   }
 
-  // Function to get user details from Firestore
   Future<void> _getUserDetails() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -59,7 +74,6 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
-  // Function to start cycling through the search placeholders
   void _startCyclingPlaceholders() {
     Future.delayed(Duration(seconds: 3), () {
       setState(() {
@@ -71,119 +85,171 @@ class _HomepageState extends State<Homepage> {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  // Function to manually refresh user details (pull-to-refresh feature)
-  Future<void> _refreshData() async {
-    setState(() {
-      _isLoading = true; // Start loading again
-    });
-    await _getUserDetails(); // Re-fetch the user details
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Access the LocationProvider using Provider.of
+    final locationProvider = Provider.of<LocationProvider>(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.menu,
-            color: Colors.black,
-          ),
-          onPressed: () {
-            // Handle menu click here
-          },
+          icon: const Icon(Icons.menu, color: Colors.black),
+          onPressed: () {},
         ),
         title: _isLoading
-            ? null // Do not show any title while loading
+            ? null
             : Text(
           'Hello, ${_userName.length > 7 ? _userName.substring(0, 7) : _userName}',
-          style: GoogleFonts.nunito(
-            color: Colors.black,
-            fontSize: 20,
-          ),
+          style: GoogleFonts.nunito(color: Colors.black, fontSize: 20),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: Colors.black,
-            ),
-            onPressed: () {
-              // Handle notification click here
-            },
+            icon: const Icon(Icons.notifications_none_outlined, color: Colors.black),
+            onPressed: () {},
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: Column(
-          children: [
-            // Search bar below AppBar
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: _searchPlaceholder,
-                  hintStyle: GoogleFonts.nunito(
-                    color: Colors.black45,
-                    fontSize: 18,
-                  ),
-                  prefixIcon: const Icon(Icons.search, color: Color.fromRGBO(29, 54, 107, 1)),
-                  filled: true,
-                  fillColor: Colors.white, // Background color white
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: const BorderSide(
-                      color: Colors.black, // Black outline
-                      width: 1.5,
+        onRefresh: _getUserDetails,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: _searchPlaceholder,
+                    hintStyle: GoogleFonts.nunito(color: Colors.black45, fontSize: 18),
+                    prefixIcon: const Icon(Icons.search, color: Color.fromRGBO(29, 54, 107, 1)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
                     ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 15,
-                    horizontal: 20,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                   ),
                 ),
               ),
-            ),
-
-            // Horizontal ListView of Circle Avatars with 4 avatars
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: SizedBox(
-                height: 120, // Adjust height to fit larger avatars
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _avatars.length,
+              // Display user's current location from LocationProvider
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, color: Colors.redAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        locationProvider.currentLocation,
+                        style: GoogleFonts.nunito(color: Colors.black, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                child: SizedBox(
+                  height: 140,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _avatars.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                        child: Column(
+                          children: [
+                            CircleAvatar(
+                              radius: 35,
+                              backgroundColor: Colors.lightBlueAccent.shade100.withOpacity(0.5),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Image.asset(
+                                  _avatars[index]['image']!,
+                                  fit: BoxFit.contain,
+                                  height: 60,
+                                  width: 60,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _avatars[index]['label']!,
+                              style: GoogleFonts.nunito(fontSize: 14, color: Colors.black),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              // Rectangular rounded container
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Container(
+                  height: 150, // Increased height
+                  decoration: BoxDecoration(
+                    color: Colors.lightBlueAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Content goes here',
+                      style: GoogleFonts.nunito(fontSize: 18, color: Colors.black),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Specialists heading
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'Specialists',
+                  style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Specialist types grid
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3, // Three items in a row
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 4 / 3, // Adjusted aspect ratio for smaller cells
+                  ),
+                  itemCount: _specialists.length,
                   itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    return Card(
+                      elevation: 2,
+                      color: Colors.lightBlue.shade100.withOpacity(0.8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(
-                            radius: 40, // Increased size of the avatar
-                            backgroundImage: AssetImage(_avatars[index]['image']!),
+                          Image.asset(
+                            _specialists[index]['image']!,
+                            height: 40,
+                            color: const Color.fromRGBO(29, 54, 107, 1), // Smaller image
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _avatars[index]['label']!,
-                            style: GoogleFonts.nunito(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
+                            _specialists[index]['label']!,
+                            style: GoogleFonts.nunito(fontSize: 14, color: Colors.black),
                           ),
                         ],
                       ),
@@ -191,94 +257,55 @@ class _HomepageState extends State<Homepage> {
                   },
                 ),
               ),
-            ),
-
-            Expanded(
-              child: Center(
-                child: const Text(
-                  'Homepage Content',
-                  style: TextStyle(fontSize: 24),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      bottomNavigationBar: Container(
-        height: 80,
-        padding: const EdgeInsets.only(top: 10), // Adjust top padding for height
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        backgroundColor: Colors.grey[100],
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.black54,
+        type: BottomNavigationBarType.fixed,
+        items: [
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icons/home.png', height: 24),
+            activeIcon: Image.asset(
+              'assets/icons/home.png',
+              height: 24,
+              color: const Color.fromRGBO(29, 54, 107, 1),
+            ),
+            label: 'Home',
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4.0,
-              spreadRadius: 0.5,
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icons/heart-beat.png', height: 24),
+            activeIcon: Image.asset(
+              'assets/icons/heart-beat.png',
+              height: 24,
+              color: const Color.fromRGBO(29, 54, 107, 1),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          backgroundColor: Colors.grey[100],
-          selectedItemColor: Colors.blue,
-          unselectedItemColor: Colors.black54,
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/home.png',
-                height: 24,
-              ),
-              activeIcon: Image.asset(
-                'assets/icons/home.png',
-                height: 24,
-                color: const Color.fromRGBO(29, 54, 107, 1),
-              ),
-              label: 'Home',
+            label: 'MyHealth',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icons/receipt.png', height: 24),
+            activeIcon: Image.asset(
+              'assets/icons/receipt.png',
+              height: 24,
+              color: const Color.fromRGBO(29, 54, 107, 1),
             ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/heart-beat.png',
-                height: 24,
-              ),
-              activeIcon: Image.asset(
-                'assets/icons/heart-beat.png',
-                color: const Color.fromRGBO(29, 54, 107, 1),
-                height: 24,
-              ),
-              label: 'MyHealth',
+            label: 'MyBills',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icons/user (1).png', height: 24),
+            activeIcon: Image.asset(
+              'assets/icons/user (1).png',
+              height: 24,
+              color: const Color.fromRGBO(29, 54, 107, 1),
             ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/receipt.png',
-                height: 24,
-              ),
-              activeIcon: Image.asset(
-                'assets/icons/receipt.png',
-                height: 24,
-                color: const Color.fromRGBO(29, 54, 107, 1),
-              ),
-              label: 'MyBills',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/user (1).png',
-                height: 24,
-              ),
-              activeIcon: Image.asset(
-                'assets/icons/user (1).png',
-                height: 24,
-                color: const Color.fromRGBO(29, 54, 107, 1),
-              ),
-              label: 'Profile',
-            ),
-          ],
-        ),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }

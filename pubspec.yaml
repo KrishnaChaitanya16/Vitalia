@@ -41,6 +41,10 @@ dependencies:
   google_sign_in:
   awesome_snackbar_content:
   cloud_firestore:
+  permission_handler:
+  geolocator:
+  geocoding:
+  provider: 
 
 dev_dependencies:
   flutter_test:
