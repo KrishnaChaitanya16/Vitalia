@@ -13,7 +13,8 @@ import '/pages/ProfilePage.dart';
 import '/pages/SearchResultsPage.dart';
 import '/pages/BookAppointmentPage.dart';
 import '/pages/BookTests.dart';
-
+import '/pages/FindPharmacy.dart';
+import '/pages/ChatbotPage.dart';
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -39,7 +40,7 @@ class _HomepageState extends State<Homepage> {
   List<Map<String, String>> _avatars = [
     {'image': 'assets/icons/appointment.png', 'label': 'Book Appointment'},
     {'image': 'assets/icons/tests.png', 'label': 'Book Tests'},
-    {'image': 'assets/icons/heart-tracker.png', 'label': 'Health Tracker'},
+    {'image': 'assets/icons/pharmacy.png', 'label': 'Find Pharmacy'},
     {'image': 'assets/icons/medicine.png', 'label': 'Medications'},
   ];
 
@@ -112,7 +113,7 @@ class _HomepageState extends State<Homepage> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => Myhealthpage()),
+          MaterialPageRoute(builder: (context) => MyHealthPage()),
         );
         break;
       case 2:
@@ -243,7 +244,7 @@ class _HomepageState extends State<Homepage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => Myhealthpage(),
+                                      builder: (context) => MyHealthPage(),
                                     ),
                                   );
                                 }
@@ -257,6 +258,9 @@ class _HomepageState extends State<Homepage> {
                                   Navigator.push(
                                     context,MaterialPageRoute(builder: (context)=>Booktests()),
                                   );
+                                }
+                                if(_avatars[index]['label']== 'Find Pharmacy'){
+                                  Navigator.push(context, MaterialPageRoute(builder: (context)=>Findpharmacy()));
                                 }
                                 // You can add similar navigation for other avatars as needed
                               },
@@ -292,19 +296,53 @@ class _HomepageState extends State<Homepage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Container(
-                  height: 150, // Increased height
+                  height: 150,
+                  width: MediaQuery.of(context).size.width,// Increased height
                   decoration: BoxDecoration(
-                    color: Colors.lightBlueAccent.withOpacity(0.2),
+                    color: Colors.lightBlueAccent.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Center(
-                    child: Text(
-                      'Content goes here',
-                      style: GoogleFonts.nunito(
-                          fontSize: 18, color: Colors.black),
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Confused or need help?',
+                        style: GoogleFonts.nunito(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 10), // Adds space between the text and button
+                      Text(
+                        'Chat with VitalAi',
+                        style: GoogleFonts.nunito(
+                          fontSize: 16,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 20), // Adds space before the button
+                      ElevatedButton(
+                        onPressed: () {
+                         Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
+                        },
+                        child: const Text('Start Chat',style: TextStyle(color: Colors.black)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.withOpacity(1), // Button color
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+
               ),
               const SizedBox(height: 20),
               // Specialists heading
