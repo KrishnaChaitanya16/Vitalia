@@ -19,7 +19,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => LocationProvider()),
+        ChangeNotifierProvider(create: (_) => LocationProvider()),
         // You can add more providers here in the future like:
         // ChangeNotifierProvider(create: (context) => AnotherProvider()),
       ],

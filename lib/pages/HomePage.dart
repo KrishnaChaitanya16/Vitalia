@@ -6,6 +6,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart'; // For location services
 import 'package:provider/provider.dart'; // Import provider package
 import '/providers/Location_provider.dart'; // Import LocationProvider
+import '/pages/SpecialistsPage.dart';
+import '/pages/MyHealthPage.dart';  // Add your page imports
+import '/pages/MyBillsPage.dart';
+import '/pages/ProfilePage.dart';
+import '/pages/SearchResultsPage.dart';
+import '/pages/BookAppointmentPage.dart';
+import '/pages/BookTests.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -20,7 +27,12 @@ class _HomepageState extends State<Homepage> {
   bool _isLoading = true; // To track loading state
   TextEditingController _searchController = TextEditingController();
   String _searchPlaceholder = 'Search by Speciality'; // Initial placeholder
-  List<String> _searchOptions = ['Speciality', 'Doctor', 'Symptoms', 'Hospital'];
+  List<String> _searchOptions = [
+    'Speciality',
+    'Doctor',
+    'Symptoms',
+    'Hospital'
+  ];
   int _currentSearchIndex = 0;
 
   // List of avatars with only 4 items
@@ -48,6 +60,8 @@ class _HomepageState extends State<Homepage> {
     super.initState();
     _getUserDetails(); // Fetch user details when the page is loaded
     _startCyclingPlaceholders(); // Start cycling through search placeholders
+    print("Calling getCurrentLocation...");
+    Provider.of<LocationProvider>(context, listen: false).getCurrentLocation();
   }
 
   Future<void> _getUserDetails() async {
@@ -84,6 +98,40 @@ class _HomepageState extends State<Homepage> {
     });
   }
 
+  // Define a method to handle navigation based on selected index
+  void _onBottomNavTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Navigate to the corresponding page based on selected index
+    switch (index) {
+      case 0:
+      // Navigate to the HomePage (Current page)
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Myhealthpage()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Mybillspage()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Profilepage()),
+        );
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Access the LocationProvider using Provider.of
@@ -101,13 +149,16 @@ class _HomepageState extends State<Homepage> {
         title: _isLoading
             ? null
             : Text(
-          'Hello, ${_userName.length > 7 ? _userName.substring(0, 7) : _userName}',
+          'Hello, ${_userName.length > 7
+              ? _userName.substring(0, 7)
+              : _userName}',
           style: GoogleFonts.nunito(color: Colors.black, fontSize: 20),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_outlined, color: Colors.black),
+            icon: const Icon(
+                Icons.notifications_none_outlined, color: Colors.black),
             onPressed: () {},
           ),
         ],
@@ -122,23 +173,42 @@ class _HomepageState extends State<Homepage> {
                 padding: const EdgeInsets.all(10.0),
                 child: TextField(
                   controller: _searchController,
+                  onSubmitted: (query) {
+                    if (query.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SearchResultsPage(
+                                query: query
+
+                              ),
+                        ),
+                      );
+                    }
+                  },
                   decoration: InputDecoration(
                     hintText: _searchPlaceholder,
-                    hintStyle: GoogleFonts.nunito(color: Colors.black45, fontSize: 18),
-                    prefixIcon: const Icon(Icons.search, color: Color.fromRGBO(29, 54, 107, 1)),
+                    hintStyle: GoogleFonts.nunito(
+                        color: Colors.black45, fontSize: 18),
+                    prefixIcon: const Icon(
+                        Icons.search, color: Color.fromRGBO(29, 54, 107, 1)),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                      borderSide: const BorderSide(
+                          color: Colors.black, width: 1.5),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 15, horizontal: 20),
                   ),
                 ),
               ),
               // Display user's current location from LocationProvider
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 5.0),
                 child: Row(
                   children: [
                     Icon(Icons.location_on, color: Colors.redAccent),
@@ -146,7 +216,8 @@ class _HomepageState extends State<Homepage> {
                     Expanded(
                       child: Text(
                         locationProvider.currentLocation,
-                        style: GoogleFonts.nunito(color: Colors.black, fontSize: 16),
+                        style: GoogleFonts.nunito(
+                            color: Colors.black, fontSize: 16),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -165,17 +236,42 @@ class _HomepageState extends State<Homepage> {
                         padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: Column(
                           children: [
-                            CircleAvatar(
-                              radius: 35,
-                              backgroundColor: Colors.lightBlueAccent.shade100.withOpacity(0.5),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Image.asset(
-                                  _avatars[index]['image']!,
-                                  fit: BoxFit.contain,
-                                  height: 60,
-                                  width: 60,
-                                  color: Colors.black,
+                            GestureDetector(
+                              onTap: () {
+                                if (_avatars[index]['label'] == 'Medications') {
+                                  // Navigate to MyHealthPage when 'Medications' is tapped
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => Myhealthpage(),
+                                    ),
+                                  );
+                                }
+                                if(_avatars[index]['label']=='Book Appointment'){
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context)=> Bookappointmentpage()),
+                                  );
+                                }
+                                if(_avatars[index]['label']== 'Book Tests'){
+                                  Navigator.push(
+                                    context,MaterialPageRoute(builder: (context)=>Booktests()),
+                                  );
+                                }
+                                // You can add similar navigation for other avatars as needed
+                              },
+                              child: CircleAvatar(
+                                radius: 35,
+                                backgroundColor: Colors.lightBlueAccent.shade100.withOpacity(0.5),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Image.asset(
+                                    _avatars[index]['image']!,
+                                    fit: BoxFit.contain,
+                                    height: 60,
+                                    width: 60,
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ),
                             ),
@@ -190,6 +286,7 @@ class _HomepageState extends State<Homepage> {
                     },
                   ),
                 ),
+
               ),
               // Rectangular rounded container
               Padding(
@@ -203,7 +300,8 @@ class _HomepageState extends State<Homepage> {
                   child: Center(
                     child: Text(
                       'Content goes here',
-                      style: GoogleFonts.nunito(fontSize: 18, color: Colors.black),
+                      style: GoogleFonts.nunito(
+                          fontSize: 18, color: Colors.black),
                     ),
                   ),
                 ),
@@ -214,7 +312,9 @@ class _HomepageState extends State<Homepage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
                   'Specialists',
-                  style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                  style: GoogleFonts.nunito(fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black),
                 ),
               ),
               const SizedBox(height: 10),
@@ -228,30 +328,47 @@ class _HomepageState extends State<Homepage> {
                     crossAxisCount: 3, // Three items in a row
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 4 / 3, // Adjusted aspect ratio for smaller cells
+                    childAspectRatio: 4 /
+                        3, // Adjusted aspect ratio for smaller cells
                   ),
                   itemCount: _specialists.length,
                   itemBuilder: (context, index) {
-                    return Card(
-                      elevation: 2,
-                      color: Colors.lightBlue.shade100.withOpacity(0.8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            _specialists[index]['image']!,
-                            height: 40,
-                            color: const Color.fromRGBO(29, 54, 107, 1), // Smaller image
+                    return GestureDetector(
+                      onTap: () {
+                        // Navigate to Specialistspage with the specialty name
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                Specialistspage(
+                                  specialistType: _specialists[index]['label']!,
+                                ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _specialists[index]['label']!,
-                            style: GoogleFonts.nunito(fontSize: 14, color: Colors.black),
-                          ),
-                        ],
+                        );
+                      },
+                      child: Card(
+                        elevation: 2,
+                        color: Colors.lightBlue.shade100.withOpacity(0.8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              _specialists[index]['image']!,
+                              height: 40,
+                              color: const Color.fromRGBO(
+                                  29, 54, 107, 1), // Smaller image
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _specialists[index]['label']!,
+                              style: GoogleFonts.nunito(
+                                  fontSize: 14, color: Colors.black),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -263,7 +380,7 @@ class _HomepageState extends State<Homepage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: _onBottomNavTapped,
         backgroundColor: Colors.grey[100],
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.black54,
