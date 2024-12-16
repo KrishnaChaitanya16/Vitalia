@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import '/pages/api_service.dart';
 import '/providers/Location_provider.dart';
+import '/pages/ResultsDisplayPage.dart';
 
 class Specialistspage extends StatefulWidget {
   final String specialistType;
@@ -203,18 +204,23 @@ class _SpecialistspageState extends State<Specialistspage> {
         return Card(
           margin: const EdgeInsets.all(8.0),
           child: ListTile(
-            leading: Icon(Icons.local_hospital, color: Colors.red),
+            leading: const Icon(Icons.local_hospital, color: Colors.red),
             title: Text(specialist['name']),
             subtitle: Text(specialist['vicinity']),
-            onTap: () => _showRouteToSpecialist(LatLng(
-              specialist['geometry']['location']['lat'],
-              specialist['geometry']['location']['lng'],
-            )),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ResultsDisplayPage(specialist: specialist),
+                ),
+              );
+            },
           ),
         );
       },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

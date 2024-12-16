@@ -330,7 +330,7 @@ class _HomepageState extends State<Homepage> {
                         onPressed: () {
                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
                         },
-                        child: const Text('Start Chat',style: TextStyle(color: Colors.black)),
+                        child: const Text('Start Chat',style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.withOpacity(1), // Button color
                           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
