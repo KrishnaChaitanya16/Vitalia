@@ -1,4 +1,8 @@
-import "package:flutter/material.dart";
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '/pages/AppointmentDetailsPage.dart';  // Import the AppointmentDetailsPage
+
 class Bookappointmentpage extends StatefulWidget {
   const Bookappointmentpage({super.key});
 
@@ -7,8 +11,154 @@ class Bookappointmentpage extends StatefulWidget {
 }
 
 class _BookappointmentpageState extends State<Bookappointmentpage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  List<Map<String, dynamic>> upcomingAppointments = [];
+  List<Map<String, dynamic>> completedAppointments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    final now = DateTime.now();
+    final currentUserEmail = _auth.currentUser?.email;
+
+    if (currentUserEmail == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No user logged in.')),
+      );
+      return;
+    }
+
+    final appointmentsSnapshot = await _firestore
+        .collection('appointments')
+        .where('patientName', isEqualTo: currentUserEmail)
+        .get();
+
+    List<Map<String, dynamic>> tempUpcomingAppointments = [];
+    List<Map<String, dynamic>> tempCompletedAppointments = [];
+
+    for (var doc in appointmentsSnapshot.docs) {
+      final appointmentData = doc.data();
+      final DateTime selectedDate = (appointmentData['selectedDate'] as Timestamp).toDate();
+
+      if (selectedDate.isAfter(now)) {
+        tempUpcomingAppointments.add(appointmentData);
+      } else {
+        tempCompletedAppointments.add(appointmentData);
+      }
+    }
+
+    setState(() {
+      upcomingAppointments = tempUpcomingAppointments;
+      completedAppointments = tempCompletedAppointments;
+    });
+  }
+
+  // Function to navigate to AppointmentDetailsPage
+  void _navigateToDetails(Map<String, dynamic> appointment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AppointmentDetailsPage(appointment: appointment),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Appointments'),
+        elevation: 8.0, // Shadow effect at the bottom of AppBar
+        shadowColor: Colors.black.withOpacity(0.3),
+        backgroundColor: Colors.white,// Adjust the shadow color and opacity
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
+          children: [
+            // Upcoming Appointments Section
+            if (upcomingAppointments.isNotEmpty)
+              const Text(
+                'Upcoming Appointments',
+                style: TextStyle(
+                  fontFamily: 'Nunito',  // Set the font to Nunito
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            if (upcomingAppointments.isNotEmpty)
+              ...upcomingAppointments.map((appointment) {
+                final selectedDate = (appointment['selectedDate'] as Timestamp).toDate();
+                final selectedSlot = appointment['selectedSlot'];
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  color: Colors.lightBlueAccent.shade100.withOpacity(0.7),
+                  child: ListTile(
+                    title: Text(
+                      'Doctor: ${appointment['doctorName']}',
+                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
+                    ),
+                    subtitle: Text(
+                      'Date: ${selectedDate.toLocal().toString().split(' ')[0]}\nTime: $selectedSlot',
+                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
+                    ),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () => _navigateToDetails(appointment), // Navigate to details page on tap
+                  ),
+                );
+              }).toList(),
+
+            const SizedBox(height: 20),
+
+            // Completed Appointments Section
+            if (completedAppointments.isNotEmpty)
+              const Text(
+                'Completed Appointments',
+                style: TextStyle(
+                  fontFamily: 'Nunito',  // Set the font to Nunito
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            if (completedAppointments.isNotEmpty)
+              ...completedAppointments.map((appointment) {
+                final selectedDate = (appointment['selectedDate'] as Timestamp).toDate();
+                final selectedSlot = appointment['selectedSlot'];
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ListTile(
+                    title: Text(
+                      'Doctor: ${appointment['doctorName']}',
+                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
+                    ),
+                    subtitle: Text(
+                      'Date: ${selectedDate.toLocal().toString().split(' ')[0]}\nTime: $selectedSlot',
+                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
+                    ),
+                    trailing: const Icon(Icons.history),
+                    onTap: () => _navigateToDetails(appointment), // Navigate to details page on tap
+                  ),
+                );
+              }).toList(),
+
+            if (upcomingAppointments.isEmpty && completedAppointments.isEmpty)
+              const Center(
+                child: Text(
+                  'No appointments available',
+                  style: TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

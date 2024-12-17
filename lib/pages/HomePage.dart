@@ -27,7 +27,11 @@ class _HomepageState extends State<Homepage> {
   String _userName = ""; // To store user's name
   bool _isLoading = true; // To track loading state
   TextEditingController _searchController = TextEditingController();
-  String _searchPlaceholder = 'Search by Speciality'; // Initial placeholder
+  String _searchPlaceholder = 'Search by Speciality';
+   // Placeholder until the name is fetched
+  String? _profileImageUrl; // Null if no custom profile image
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
+// Initial placeholder
   List<String> _searchOptions = [
     'Speciality',
     'Doctor',
@@ -38,7 +42,7 @@ class _HomepageState extends State<Homepage> {
 
   // List of avatars with only 4 items
   List<Map<String, String>> _avatars = [
-    {'image': 'assets/icons/appointment.png', 'label': 'Book Appointment'},
+    {'image': 'assets/icons/appointment.png', 'label': 'My Appointments'},
     {'image': 'assets/icons/tests.png', 'label': 'Book Tests'},
     {'image': 'assets/icons/pharmacy.png', 'label': 'Find Pharmacy'},
     {'image': 'assets/icons/medicine.png', 'label': 'Medications'},
@@ -63,31 +67,94 @@ class _HomepageState extends State<Homepage> {
     _startCyclingPlaceholders(); // Start cycling through search placeholders
     print("Calling getCurrentLocation...");
     Provider.of<LocationProvider>(context, listen: false).getCurrentLocation();
+    _fetchUserDetails();
   }
+  Future<void> _fetchUserDetails() async {
+    if (_currentUser != null) {
+      try {
+        // Fetch user details from Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            _userName = userDoc['fullName'] ?? _currentUser!.displayName ?? "User";
+            _profileImageUrl = userDoc['profileImageUrl'] ?? _currentUser!.photoURL;
+          });
+        } else {
+          // Firestore document does not exist, fallback to Google data
+          setState(() {
+            _userName = _currentUser!.displayName ?? "User";
+            _profileImageUrl = _currentUser!.photoURL; // Use Google profile photo
+          });
+
+          // Optionally, create a Firestore document for new Google sign-in users
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_currentUser!.uid)
+              .set({
+            'fullName': _currentUser!.displayName ?? "User",
+            'profileImageUrl': _currentUser!.photoURL,
+            'email': _currentUser!.email,
+          });
+        }
+      } catch (e) {
+        print("Error fetching user details: $e");
+        setState(() {
+          _userName = _currentUser!.displayName ?? "User";
+          _profileImageUrl = _currentUser!.photoURL;
+        });
+      }
+    }
+  }
+
 
   Future<void> _getUserDetails() async {
     User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      DocumentSnapshot userDoc =
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
-      if (userDoc.exists) {
+    if (user != null) {
+      try {
+        // Fetch user document from Firestore
+        DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
         setState(() {
-          _userName = userDoc['fullName'] ?? "User";
-          _isLoading = false; // Stop loading when user details are fetched
+          // Check Firestore first, then fallback to Google data
+          _userName = userDoc.exists
+              ? (userDoc['fullName'] ?? user.displayName ?? "User")
+              : user.displayName ?? "User";
+
+          _isLoading = false; // Stop loading
         });
-      } else {
+
+        // Optionally create Firestore entry for new Google users
+        if (!userDoc.exists) {
+          FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'fullName': user.displayName ?? "User",
+            'email': user.email,
+            'profileImageUrl': user.photoURL ?? '',
+          });
+        }
+      } catch (e) {
+        print("Error fetching user details: $e");
+
+        // In case of any error, fallback to Firebase Auth user data
         setState(() {
-          _userName = "User"; // Default if user data is not found
+          _userName = user.displayName ?? "User";
           _isLoading = false;
         });
       }
     } else {
+      // If no user is signed in
       setState(() {
-        _isLoading = false; // Stop loading if there's no user signed in
+        _userName = "User";
+        _isLoading = false;
       });
     }
   }
+
 
   void _startCyclingPlaceholders() {
     Future.delayed(Duration(seconds: 3), () {
@@ -140,13 +207,155 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: Drawer(
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, left: 16.0, right: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Section
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[200],
+                    child: _profileImageUrl != null
+                        ? ClipOval(
+                      child: Image.network(
+                        _profileImageUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                        : ClipOval(
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        color: Colors.white, // Default color background
+                        child: Image.asset(
+                          'assets/icons/user (1).png',
+                          color: Colors.grey, // Tint the default image
+                          colorBlendMode: BlendMode.srcIn,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+
+
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _userName,
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "View and edit profile",
+                          style: GoogleFonts.nunito(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30), // Increased spacing below the profile section
+              const Divider(thickness: 1, color: Colors.grey),
+              const SizedBox(height: 30), // Increased spacing below the divider
+
+              // Menu Items
+              Expanded(
+                child: ListView(
+                  children: [
+                    ListTile(
+                      leading: Image.asset('assets/icons/appointment.png', height: 24),
+                      title: Text(
+                        "Your Appointments",
+                        style: GoogleFonts.nunito(fontSize: 16),
+                      ),
+                      onTap: () {
+                       Navigator.push(context, MaterialPageRoute(builder: (context)=>Bookappointmentpage()));
+                        // Navigate to Appointments Page
+                      },
+                    ),
+                    const SizedBox(height: 20), // Spacing between menu items
+                    ListTile(
+                      leading: Image.asset('assets/icons/tests.png', height: 24),
+                      title: Text(
+                        "Your Tests",
+                        style: GoogleFonts.nunito(fontSize: 16),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Navigate to Tests Page
+                      },
+                    ),
+                    const SizedBox(height: 20), // Spacing between menu items
+                    ListTile(
+                      leading: Image.asset('assets/icons/user (1).png', height: 24),
+                      title: Text(
+                        "Profile",
+                        style: GoogleFonts.nunito(fontSize: 16),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Navigate to Profile Page
+                      },
+                    ),
+                    const SizedBox(height: 20), // Spacing between menu items
+                    ListTile(
+                      leading: Image.asset('assets/icons/android.png', height: 24),
+                      title: Text(
+                        "Vital AI",
+                        style: GoogleFonts.nunito(fontSize: 16),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Navigate to Chat with AI Page
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // Footer Section
+              const SizedBox(height: 30), // Space before footer section
+              const Divider(thickness: 1, color: Colors.grey),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Version 1.0.0",
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      )
+
+      ,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
+        leading: Builder(
+            builder:(context)=>IconButton(
           icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () {},
-        ),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+
+          },
+        )),
         title: _isLoading
             ? null
             : Text(
@@ -248,7 +457,7 @@ class _HomepageState extends State<Homepage> {
                                     ),
                                   );
                                 }
-                                if(_avatars[index]['label']=='Book Appointment'){
+                                if(_avatars[index]['label']=='My Appointments'){
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (context)=> Bookappointmentpage()),

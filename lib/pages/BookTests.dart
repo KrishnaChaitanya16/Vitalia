@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import '/pages/Testspage.dart'; // Import the Testspage
 
 class Booktests extends StatefulWidget {
   const Booktests({super.key});
@@ -17,23 +18,20 @@ class _BooktestsState extends State<Booktests> {
   Position? _currentPosition;
   TextEditingController _searchController = TextEditingController();
 
-  // Replace with your Google API Key
-  final String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc'; // Add your API Key here
+  final String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc';
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation(); // Get current location when page is initialized
+    _getCurrentLocation();
   }
 
-  // Get current user location using Geolocator
   Future<void> _getCurrentLocation() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Request location permission and get the current position
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         _showError("Location permission is required.");
@@ -41,8 +39,6 @@ class _BooktestsState extends State<Booktests> {
       }
 
       _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-      // Fetch the nearest diagnostic centers after getting the location
       _fetchSearchResults();
     } catch (e) {
       setState(() {
@@ -52,14 +48,12 @@ class _BooktestsState extends State<Booktests> {
     }
   }
 
-  // Fetch nearest diagnostic centers using Google Places API
   Future<void> _fetchSearchResults() async {
     if (_currentPosition == null) return;
 
     final lat = _currentPosition!.latitude;
     final lng = _currentPosition!.longitude;
 
-    // Construct the URL for Google Places API (Nearby Search) with "diagnostic center" as keyword
     final url =
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$lat,$lng&radius=5000&keyword=diagnostic+center&key=$apiKey';
 
@@ -86,7 +80,6 @@ class _BooktestsState extends State<Booktests> {
     }
   }
 
-  // Show error message in case of failure
   void _showError(String message) {
     showDialog(
       context: context,
@@ -106,7 +99,7 @@ class _BooktestsState extends State<Booktests> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Set entire background to white
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Book a Test',
@@ -130,7 +123,6 @@ class _BooktestsState extends State<Booktests> {
                 ),
               ),
               onSubmitted: (_) {
-                // Trigger search when the user submits a query
                 setState(() {
                   _isLoading = true;
                 });
@@ -160,11 +152,16 @@ class _BooktestsState extends State<Booktests> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    color: Colors.white, // Set card color to white
+                    color: Colors.white,
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.white.withOpacity(1),
-                        child: Image.asset("assets/icons/test.png", color: Colors.blue,height: 25,width:25 ,),
+                        backgroundColor: Colors.white,
+                        child: Image.asset(
+                          "assets/icons/test.png",
+                          color: Colors.blue,
+                          height: 25,
+                          width: 25,
+                        ),
                       ),
                       title: Text(
                         result['name'] ?? 'No title available',
@@ -175,25 +172,11 @@ class _BooktestsState extends State<Booktests> {
                         style: GoogleFonts.nunito(fontSize: 14, color: Colors.black54),
                       ),
                       onTap: () {
-                        // Open result link in Google Maps or browser
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Open Link'),
-                            content: Text('Open ${result['place_id']}?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  // Handle opening the place in Google Maps
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('Open'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-                            ],
+                        // Navigate to Testspage
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Testspage(diagnosticCenter: result),
                           ),
                         );
                       },

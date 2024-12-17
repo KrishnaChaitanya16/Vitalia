@@ -55,29 +55,37 @@ class _LoginscreenState extends State<Loginscreen> {
 
   Future<void> _loginWithGoogle() async {
     try {
+      // Trigger Google Sign-In flow
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        return; // User canceled the Google sign-in
+        _showSnackbar("Google Sign-In canceled.", false);
+        return; // Exit if the user cancels the sign-in
       }
 
+      // Obtain the Google authentication details
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
+      // Generate Firebase credential using Google access tokens
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      // Authenticate with Firebase using the credential
       UserCredential userCredential = await _auth.signInWithCredential(credential);
-      _showSnackbar("Google Sign-In Successful: ${userCredential.user?.email}", true);
+
+      // Success message
+      _showSnackbar("Welcome, ${userCredential.user?.displayName ?? 'User'}!", true);
 
       // Navigate to the home page
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const Homepage()),
+        MaterialPageRoute(builder: (context) => const Homepage()), // Replace with your home page
       );
     } catch (e) {
+      print("Error during Google Sign-In: $e");
       _showSnackbar("Google Sign-In failed. Please try again.", false);
     }
   }

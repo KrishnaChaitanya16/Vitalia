@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '/pages/SuccessPage.dart';
+import 'dart:async';
 
 class Appoinmetpage extends StatefulWidget {
   final String doctorName;
@@ -19,6 +23,108 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
   DateTime? selectedDate; // Selected date
   DateTime focusedDate = DateTime.now(); // Currently focused date in the calendar
   int? selectedSlotIndex; // Index of the selected time slot
+  Set<int> bookedSlots = {}; // Set of booked slot indices for the selected date
+  StreamSubscription? appointmentListener; // Firestore listener for real-time updates
+
+  // Firestore and Auth instances
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAndAddDoctor();
+    _listenToAppointments(); // Real-time updates for appointments
+  }
+
+  @override
+  void dispose() {
+    appointmentListener?.cancel(); // Cancel listener when the widget is disposed
+    super.dispose();
+  }
+
+  // Check if the doctor exists in Firestore, add if not
+  Future<void> _checkAndAddDoctor() async {
+    final doctorSnapshot = await _firestore
+        .collection('doctors')
+        .where('name', isEqualTo: widget.doctorName)
+        .get();
+
+    if (doctorSnapshot.docs.isEmpty) {
+      await _firestore.collection('doctors').add({
+        'name': widget.doctorName,
+        'availableSlots': widget.availableSlots,
+        'createdAt': Timestamp.now(),
+      });
+    }
+  }
+
+  // Listen to appointments in real-time and update booked slots
+  void _listenToAppointments() {
+    appointmentListener = _firestore
+        .collection('appointments')
+        .where('doctorName', isEqualTo: widget.doctorName)
+        .snapshots()
+        .listen((snapshot) {
+      if (selectedDate != null) {
+        _fetchBookedSlots(selectedDate!);
+      }
+    });
+  }
+
+  // Fetch booked slots for the selected date
+  Future<void> _fetchBookedSlots(DateTime date) async {
+    final snapshot = await _firestore
+        .collection('appointments')
+        .where('doctorName', isEqualTo: widget.doctorName)
+        .where('selectedDate', isEqualTo: Timestamp.fromDate(date))
+        .get();
+
+    setState(() {
+      bookedSlots = snapshot.docs.map((doc) {
+        final slot = doc['selectedSlot'] as String;
+        return widget.availableSlots.indexOf(slot);
+      }).toSet();
+    });
+  }
+
+  // Book an appointment
+  Future<void> _bookAppointment() async {
+    if (selectedDate != null && selectedSlotIndex != null) {
+      final userEmail = _auth.currentUser?.email ?? 'Unknown User';
+
+      await _firestore.collection('appointments').add({
+        'doctorName': widget.doctorName,
+        'patientName': userEmail,
+        'selectedDate': selectedDate!,
+        'selectedSlot': widget.availableSlots[selectedSlotIndex!],
+        'userId': userEmail,
+        'status': 'confirmed',
+        'createdAt': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Appointment Confirmed for '
+                '${selectedDate!.toLocal().toString().split(' ')[0]} at '
+                '${widget.availableSlots[selectedSlotIndex!]}',
+          ),
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SuccessPage(
+            doctorName: widget.doctorName,
+            selectedDate: selectedDate!,
+            selectedSlot: widget.availableSlots[selectedSlotIndex!],
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,31 +153,32 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
             // Embedded Calendar
             TableCalendar(
               firstDay: DateTime.now(),
-              lastDay: DateTime.now().add(const Duration(days: 30)), // Limit to 30 days
+              lastDay: DateTime.now().add(const Duration(days: 30)),
               focusedDay: focusedDate,
               calendarStyle: CalendarStyle(
                 selectedDecoration: BoxDecoration(
-                  color: Colors.blue, // Selected date background color
+                  color: Colors.blue,
                   shape: BoxShape.circle,
                 ),
                 todayDecoration: BoxDecoration(
-                  color: Colors.grey.shade300, // Highlight for today's date
+                  color: Colors.grey.shade300,
                   shape: BoxShape.circle,
                 ),
-                weekendTextStyle: TextStyle(color: Colors.red), // Red for weekends
-                outsideDaysVisible: false, // Hide days from other months
+                weekendTextStyle: const TextStyle(color: Colors.red),
+                outsideDaysVisible: false,
               ),
               headerStyle: const HeaderStyle(
-                formatButtonVisible: false, // Hide month/week toggle button
+                formatButtonVisible: false,
                 titleCentered: true,
                 titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               selectedDayPredicate: (day) => selectedDate != null && isSameDay(selectedDate, day),
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {
-                  selectedDate = selectedDay; // Update selected date
-                  this.focusedDate = focusedDay; // Update calendar focus
+                  selectedDate = selectedDay;
+                  this.focusedDate = focusedDay;
                 });
+                _fetchBookedSlots(selectedDay); // Fetch booked slots for the selected day
               },
             ),
             const SizedBox(height: 24),
@@ -83,18 +190,22 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
             Expanded(
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, // Number of columns
-                  crossAxisSpacing: 10, // Space between columns
-                  mainAxisSpacing: 10, // Space between rows
-                  childAspectRatio: 3, // Aspect ratio of grid items
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3,
                 ),
                 itemCount: widget.availableSlots.length,
                 itemBuilder: (context, index) {
-                  bool isSelected = selectedSlotIndex == index; // Check if this slot is selected
+                  bool isSelected = selectedSlotIndex == index;
+                  bool isBooked = bookedSlots.contains(index);
+
                   return GestureDetector(
-                    onTap: () {
+                    onTap: isBooked
+                        ? null
+                        : () {
                       setState(() {
-                        selectedSlotIndex = index; // Update selected slot index
+                        selectedSlotIndex = index;
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -105,7 +216,11 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
                     },
                     child: Card(
                       elevation: 3,
-                      color: isSelected ? Colors.blue : Colors.white, // Change color when selected
+                      color: isBooked
+                          ? Colors.grey.shade300 // Disable booked slots
+                          : isSelected
+                          ? Colors.blue
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -115,7 +230,11 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : Colors.black,
+                            color: isBooked
+                                ? Colors.grey
+                                : isSelected
+                                ? Colors.white
+                                : Colors.black,
                           ),
                         ),
                       ),
@@ -125,27 +244,21 @@ class _AppoinmetpageState extends State<Appoinmetpage> {
               ),
             ),
             ElevatedButton(
-              onPressed: selectedDate != null && selectedSlotIndex != null
-                  ? () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Appointment Confirmed for '
-                          '${selectedDate!.toLocal().toString().split(' ')[0]} at '
-                          '${widget.availableSlots[selectedSlotIndex!]}',
-                    ),
-                  ),
-                );
-              }
-                  : null, // Disable button if no date or slot is selected
+              onPressed: (selectedDate != null && selectedSlotIndex != null && !bookedSlots.contains(selectedSlotIndex))
+                  ? _bookAppointment
+                  : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: (selectedDate != null && selectedSlotIndex != null)
+                backgroundColor: (selectedDate != null && selectedSlotIndex != null && !bookedSlots.contains(selectedSlotIndex))
                     ? Colors.blue
                     : Colors.grey,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
               ),
-              child: const Text('Confirm Appointment'),
+              child: Text(
+                (selectedDate != null && selectedSlotIndex != null && !bookedSlots.contains(selectedSlotIndex))
+                    ? 'Confirm Appointment'
+                    : 'Select Date & Slot',
+              ),
             ),
           ],
         ),
