@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '/pages/AppointmentDetailsPage.dart';  // Import the AppointmentDetailsPage
+import '/pages/AppointmentDetailsPage.dart';// Import the AppointmentDetailsPage
+import '/pages/ReveiwsPage.dart';
 
 class Bookappointmentpage extends StatefulWidget {
   const Bookappointmentpage({super.key});
@@ -134,19 +135,44 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ListTile(
-                    title: Text(
-                      'Doctor: ${appointment['doctorName']}',
-                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
-                    ),
-                    subtitle: Text(
-                      'Date: ${selectedDate.toLocal().toString().split(' ')[0]}\nTime: $selectedSlot',
-                      style: const TextStyle(fontFamily: 'Nunito'),  // Set the font to Nunito
-                    ),
-                    trailing: const Icon(Icons.history),
-                    onTap: () => _navigateToDetails(appointment), // Navigate to details page on tap
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(
+                          'Doctor: ${appointment['doctorName']}',
+                          style: const TextStyle(fontFamily: 'Nunito'),
+                        ),
+                        subtitle: Text(
+                          'Date: ${selectedDate.toLocal().toString().split(' ')[0]}\nTime: $selectedSlot',
+                          style: const TextStyle(fontFamily: 'Nunito'),
+                        ),
+                        trailing: const Icon(Icons.history),
+                        onTap: () => _navigateToDetails(appointment),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ReviewsPage(appointment: appointment),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Write a Review',
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
+
               }).toList(),
 
             if (upcomingAppointments.isEmpty && completedAppointments.isEmpty)

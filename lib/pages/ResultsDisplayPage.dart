@@ -1,167 +1,239 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '/pages/AppoinmetPage.dart';
 
-class ResultsDisplayPage extends StatelessWidget {
+class ResultsDisplayPage extends StatefulWidget {
   final Map specialist;
 
   const ResultsDisplayPage({Key? key, required this.specialist}) : super(key: key);
 
   @override
+  State<ResultsDisplayPage> createState() => _ResultsDisplayPageState();
+}
+
+class _ResultsDisplayPageState extends State<ResultsDisplayPage> {
+  late Future<Map<String, dynamic>> specialistDetails;
+
+  @override
+  void initState() {
+    super.initState();
+    specialistDetails = fetchSpecialistDetails(widget.specialist['place_id']);
+  }
+
+  Future<Map<String, dynamic>> fetchSpecialistDetails(String placeId) async {
+    const String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc';
+    final url =
+        'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey';
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['status'] == 'OK') {
+        return data['result'];
+      } else {
+        throw Exception('Failed to fetch place details: ${data['status']}');
+      }
+    } else {
+      throw Exception('Failed to connect to Google Places API');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        elevation: 5, // Shadow for the app bar
+        elevation: 5,
         shadowColor: Colors.black26,
-        backgroundColor: Colors.white, // White background
-        iconTheme: const IconThemeData(color: Colors.black), // Black icons (back button)
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
         title: Text(
-          specialist['name'],
-          style: const TextStyle(color: Colors.black), // Black text for title
+          widget.specialist['name'] ?? 'Specialist',
+          style: const TextStyle(color: Colors.black),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Display the image or fallback image with rounded corners
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: specialist['photos'] != null && specialist['photos'].isNotEmpty
-                  ? Image.network(
-                'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${specialist['photos'][0]['photo_reference']}&key=AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc',
-                fit: BoxFit.cover,
-                height: MediaQuery.of(context).size.height * 0.40,
-                width: double.infinity,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.asset(
-                    'assets/icons/medical-assistance.png',
-                    fit: BoxFit.cover,
-                    color: Colors.grey,
-                  );
-                },
-              )
-                  : Image.asset(
-                'assets/icons/medical-assistance.png',
-                fit: BoxFit.cover,
-                color: Colors.black54.withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Specialist Details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Specialist Name
-                    Text(
-                      specialist['name'] ?? 'Unknown',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    // Rating and number of reviews
-                    if (specialist['rating'] != null)
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${specialist['rating']} (${specialist['user_ratings_total'] ?? 0} reviews)',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 16),
-                    // Address
-                    Text(
-                      specialist['vicinity'] ?? 'Address not available',
-                      style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-                    ),
-                    const SizedBox(height: 16),
-                    // Open/Closed status
-                    if (specialist['opening_hours'] != null &&
-                        specialist['opening_hours']['open_now'] != null)
-                      Text(
-                        specialist['opening_hours']['open_now']
-                            ? 'Currently Open'
-                            : 'Currently Closed',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: specialist['opening_hours']['open_now']
-                              ? Colors.green
-                              : Colors.red,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 80.0),
+              child: FutureBuilder<Map<String, dynamic>>(
+                future: specialistDetails,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  final details = snapshot.data!;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: widget.specialist['photos'] != null &&
+                            widget.specialist['photos'].isNotEmpty
+                            ? Image.network(
+                          'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${widget.specialist['photos'][0]['photo_reference']}&key=AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc',
+                          fit: BoxFit.cover,
+                          height: MediaQuery.of(context).size.height * 0.40,
+                          width: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              'assets/icons/medical-assistance.png',
+                              fit: BoxFit.cover,
+                              color: Colors.grey,
+                            );
+                          },
+                        )
+                            : Image.asset(
+                          'assets/icons/medical-assistance.png',
+                          fit: BoxFit.cover,
+                          color: Colors.black54.withOpacity(0.8),
                         ),
                       ),
-                    const SizedBox(height: 8),
-                    // Category
-                    if (specialist['types'] != null)
-                      Text(
-                        'Category: ${specialist['types'].join(', ')}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    const SizedBox(height: 16),
-                    // Public Reviews
-                    if (specialist['reviews'] != null && specialist['reviews'].isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Public Reviews:',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          ...specialist['reviews'].take(3).map((review) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        review['author_name'],
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold, fontSize: 16),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        review['text'] ?? 'No review text provided.',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    ],
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.specialist['name'] ?? 'Unknown',
+                              style: const TextStyle(
+                                  fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            if (widget.specialist['rating'] != null)
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${widget.specialist['rating']} (${widget.specialist['user_ratings_total'] ?? 0} reviews)',
+                                    style: const TextStyle(fontSize: 16),
                                   ),
+                                ],
+                              ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.specialist['vicinity'] ??
+                                  'Address not available',
+                              style: const TextStyle(
+                                  fontSize: 16, fontStyle: FontStyle.italic),
+                            ),
+                            const SizedBox(height: 16),
+                            if (details['reviews'] != null &&
+                                details['reviews'].isNotEmpty) ...[
+                              const Text(
+                                'Public Reviews:',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 160,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: details['reviews'].length,
+                                  itemBuilder: (context, index) {
+                                    final review = details['reviews'][index];
+                                    return Container(
+                                      width: 300,
+                                      margin: const EdgeInsets.only(right: 16),
+                                      child: Card(
+                                        elevation: 4,
+                                        color: Colors.white,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  CircleAvatar(
+                                                    backgroundImage: NetworkImage(
+                                                        review['profile_photo_url'] ??
+                                                            ''),
+                                                    radius: 16,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      review['author_name'] ??
+                                                          'Anonymous',
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                          FontWeight.bold),
+                                                      overflow:
+                                                      TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  ...List.generate(
+                                                    review['rating'] ?? 0,
+                                                        (index) => const Icon(
+                                                        Icons.star,
+                                                        size: 16,
+                                                        color: Colors.amber),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  review['text'] ??
+                                                      'No review text provided.',
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                  maxLines: 3,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
-                            );
-                          }).toList(),
-                        ],
+                            ],
+                          ],
+                        ),
                       ),
-                  ],
-                ),
+                    ],
+                  );
+                },
               ),
             ),
-            // Book Appointment Button
-            Padding(
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: ElevatedButton(
                 onPressed: () {
-                  // Navigate to AppoinmetPage with parameters
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => Appoinmetpage(
-                        doctorName: specialist['name'] ?? 'Unknown',
+                        doctorName: widget.specialist['name'] ?? 'Unknown',
                         availableSlots: [
                           '10:00 AM - 10:30 AM',
                           '11:00 AM - 11:30 AM',
@@ -186,8 +258,8 @@ class ResultsDisplayPage extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

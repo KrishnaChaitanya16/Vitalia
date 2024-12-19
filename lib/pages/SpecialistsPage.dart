@@ -8,6 +8,7 @@ import 'package:sliding_up_panel/sliding_up_panel.dart';
 import '/pages/api_service.dart';
 import '/providers/Location_provider.dart';
 import '/pages/ResultsDisplayPage.dart';
+import 'dart:math';
 
 class Specialistspage extends StatefulWidget {
   final String specialistType;
@@ -195,18 +196,76 @@ class _SpecialistspageState extends State<Specialistspage> {
 
     return polyline;
   }
+  String _calculateDistance(double startLat, double startLng, double endLat, double endLng) {
+    const double earthRadius = 6371.0; // Radius of the Earth in kilometers
+
+    final double dLat = _degToRad(endLat - startLat);
+    final double dLng = _degToRad(endLng - startLng);
+
+    final double a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
+            cos(_degToRad(startLat)) * cos(_degToRad(endLat)) *
+                (sin(dLng / 2) * sin(dLng / 2));
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return (earthRadius * c).toStringAsFixed(1); // Return as a String
+  }
+
+
+  double _degToRad(double degree) {
+    return degree * pi / 180.0;
+  }
+
 
   Widget _buildSpecialistList() {
     return ListView.builder(
       itemCount: specialists.length,
       itemBuilder: (context, index) {
         final specialist = specialists[index];
-        return Card(
-          margin: const EdgeInsets.all(8.0),
+        final lat = specialist['geometry']['location']['lat'];
+        final lng = specialist['geometry']['location']['lng'];
+        final distance = _calculateDistance(userLat, userLng, lat, lng); // Distance is a string now
+        final rating = specialist['rating'] ?? 0.0; // Default to 0.0 if no rating
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          decoration: BoxDecoration(
+            color: Colors.white, // Set the background color to white
+            borderRadius: BorderRadius.circular(10), // Rounded corners
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3), // Light shadow color
+                spreadRadius: 2, // Spread radius of the shadow
+                blurRadius: 5, // Blur effect of the shadow
+                offset: Offset(0, 2), // Offset of the shadow (vertical)
+              ),
+            ],
+          ),
           child: ListTile(
             leading: const Icon(Icons.local_hospital, color: Colors.red),
             title: Text(specialist['name']),
             subtitle: Text(specialist['vicinity']),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('$distance km'), // Display the distance as a string
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      rating.toString(), // Display the rating
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const Icon(
+                      Icons.star,
+                      color: Colors.amber, // Gold color for the star
+                      size: 16.0,
+                    ),
+                  ],
+                ),
+              ],
+            ),
             onTap: () {
               Navigator.push(
                 context,
@@ -220,7 +279,6 @@ class _SpecialistspageState extends State<Specialistspage> {
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

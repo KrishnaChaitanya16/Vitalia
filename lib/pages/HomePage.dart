@@ -15,6 +15,8 @@ import '/pages/BookAppointmentPage.dart';
 import '/pages/BookTests.dart';
 import '/pages/FindPharmacy.dart';
 import '/pages/ChatbotPage.dart';
+import '/pages/AllSpecialistsPage.dart';
+import 'dart:async';
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -28,6 +30,10 @@ class _HomepageState extends State<Homepage> {
   bool _isLoading = true; // To track loading state
   TextEditingController _searchController = TextEditingController();
   String _searchPlaceholder = 'Search by Speciality';
+
+  int _currentCharIndex = 0;
+  Timer? _typingTimer;
+
    // Placeholder until the name is fetched
   String? _profileImageUrl; // Null if no custom profile image
   final User? _currentUser = FirebaseAuth.instance.currentUser;
@@ -50,22 +56,23 @@ class _HomepageState extends State<Homepage> {
 
   // Specialist types for GridView
   List<Map<String, String>> _specialists = [
-    {'image': 'assets/icons/heart.png', 'label': 'Cardiology'},
-    {'image': 'assets/icons/hair.png', 'label': 'Dermatology'},
-    {'image': 'assets/icons/brain.png', 'label': 'Neurology'},
-    {'image': 'assets/icons/orthopedics.png', 'label': 'Orthopedics'},
-    {'image': 'assets/icons/pediatric.png', 'label': 'Pediatrics'},
+    {'image': 'assets/icons/heart.png', 'label': 'Heart Issues'},
+    {'image': 'assets/icons/hair.png', 'label': 'Skin & Hair'},
+    {'image': 'assets/icons/brain.png', 'label': 'Brain and Nerves'},
+    {'image': 'assets/icons/orthopedics.png', 'label': 'Bones and Joints'},
+    {'image': 'assets/icons/pediatric.png', 'label': 'Child Specialist'},
     {'image': 'assets/icons/stomach.png', 'label': 'Gastroentrology'},
-    {'image': 'assets/icons/x-rays.png', 'label': 'Radiology'},
+    {'image': 'assets/icons/nasal.png', 'label': 'Ear,Nose,Throat'},
     {'image': 'assets/icons/kidney.png', 'label': 'Urology'},
+    {'image':'assets/icons/plus.png','label':'More'},
   ];
 
   @override
   void initState() {
     super.initState();
     _getUserDetails(); // Fetch user details when the page is loaded
-    _startCyclingPlaceholders(); // Start cycling through search placeholders
-    print("Calling getCurrentLocation...");
+    _startTypingAnimation(); // Start cycling through search placeholders
+
     Provider.of<LocationProvider>(context, listen: false).getCurrentLocation();
     _fetchUserDetails();
   }
@@ -80,14 +87,14 @@ class _HomepageState extends State<Homepage> {
 
         if (userDoc.exists) {
           setState(() {
-            _userName = userDoc['fullName'] ?? _currentUser!.displayName ?? "User";
-            _profileImageUrl = userDoc['profileImageUrl'] ?? _currentUser!.photoURL;
+            _userName = (userDoc['fullName'] != null && userDoc['fullName'].trim().isNotEmpty)
+                ? userDoc['fullName']
+                : _currentUser!.displayName ?? "User";
           });
         } else {
           // Firestore document does not exist, fallback to Google data
           setState(() {
             _userName = _currentUser!.displayName ?? "User";
-            _profileImageUrl = _currentUser!.photoURL; // Use Google profile photo
           });
 
           // Optionally, create a Firestore document for new Google sign-in users
@@ -96,19 +103,41 @@ class _HomepageState extends State<Homepage> {
               .doc(_currentUser!.uid)
               .set({
             'fullName': _currentUser!.displayName ?? "User",
-            'profileImageUrl': _currentUser!.photoURL,
             'email': _currentUser!.email,
           });
         }
       } catch (e) {
-        print("Error fetching user details: $e");
         setState(() {
           _userName = _currentUser!.displayName ?? "User";
-          _profileImageUrl = _currentUser!.photoURL;
         });
       }
     }
   }
+  void _startTypingAnimation() {
+    _typingTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (_currentCharIndex < _searchOptions[_currentSearchIndex].length) {
+        setState(() {
+          // Build the string character by character
+          _searchPlaceholder = 'Search by ${_searchOptions[_currentSearchIndex].substring(0, _currentCharIndex + 1)}';
+          _currentCharIndex++;
+        });
+      } else {
+        // Typing for the current option is complete
+        timer.cancel();
+        Future.delayed(const Duration(seconds: 2), () {
+          // Move to the next search option
+          setState(() {
+            _currentSearchIndex = (_currentSearchIndex + 1) % _searchOptions.length;
+            _currentCharIndex = 0; // Reset character index
+          });
+          _startTypingAnimation(); // Start typing the next option
+        });
+      }
+    });
+  }
+
+
+
 
 
   Future<void> _getUserDetails() async {
@@ -138,7 +167,7 @@ class _HomepageState extends State<Homepage> {
           });
         }
       } catch (e) {
-        print("Error fetching user details: $e");
+
 
         // In case of any error, fallback to Firebase Auth user data
         setState(() {
@@ -156,15 +185,6 @@ class _HomepageState extends State<Homepage> {
   }
 
 
-  void _startCyclingPlaceholders() {
-    Future.delayed(Duration(seconds: 3), () {
-      setState(() {
-        _searchPlaceholder = 'Search by ${_searchOptions[_currentSearchIndex]}';
-        _currentSearchIndex = (_currentSearchIndex + 1) % _searchOptions.length;
-      });
-      _startCyclingPlaceholders(); // Recursively call to keep cycling
-    });
-  }
 
   // Define a method to handle navigation based on selected index
   void _onBottomNavTapped(int index) {
@@ -347,7 +367,8 @@ class _HomepageState extends State<Homepage> {
       ,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0,
+        elevation: 2,
+        shadowColor: Colors.black12,
         leading: Builder(
             builder:(context)=>IconButton(
           icon: const Icon(Icons.menu, color: Colors.black),
@@ -362,7 +383,7 @@ class _HomepageState extends State<Homepage> {
           'Hello, ${_userName.length > 7
               ? _userName.substring(0, 7)
               : _userName}',
-          style: GoogleFonts.nunito(color: Colors.black, fontSize: 20),
+          style: GoogleFonts.nunito(color: Colors.black, fontSize: 22,fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
@@ -409,6 +430,9 @@ class _HomepageState extends State<Homepage> {
                       borderRadius: BorderRadius.circular(30),
                       borderSide: const BorderSide(
                           color: Colors.black, width: 1.5),
+                    ),
+                    focusedBorder:  OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30)
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 15, horizontal: 20),
@@ -558,7 +582,7 @@ class _HomepageState extends State<Homepage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  'Specialists',
+                  'Find a Doctor for your Health Problem',
                   style: GoogleFonts.nunito(fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.black),
@@ -583,15 +607,20 @@ class _HomepageState extends State<Homepage> {
                     return GestureDetector(
                       onTap: () {
                         // Navigate to Specialistspage with the specialty name
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                Specialistspage(
-                                  specialistType: _specialists[index]['label']!,
-                                ),
-                          ),
-                        );
+                        if(index==_specialists.length-1){
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>Allspecialistspage() ));
+                          
+                        }else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  Specialistspage(
+                                    specialistType: _specialists[index]['label']!,
+                                  ),
+                            ),
+                          );
+                        }
                       },
                       child: Card(
                         elevation: 2,
@@ -623,15 +652,20 @@ class _HomepageState extends State<Homepage> {
               ),
             ],
           ),
+
         ),
+
       ),
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onBottomNavTapped,
         backgroundColor: Colors.grey[100],
-        selectedItemColor: Colors.blue,
+        selectedItemColor: const Color.fromRGBO(29, 54, 107, 1),
         unselectedItemColor: Colors.black54,
         type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.nunito(),
         items: [
           BottomNavigationBarItem(
             icon: Image.asset('assets/icons/home.png', height: 24),

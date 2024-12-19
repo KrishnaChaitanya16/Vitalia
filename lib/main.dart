@@ -37,10 +37,23 @@ class MyApp extends StatelessWidget {
       home: Loginscreen(),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        inputDecorationTheme: InputDecorationTheme(
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: Colors.black,
+
+            ),
+
+              
+            
+          )
+        ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.grey[200], // Grayish background for BottomNavigationBar
           selectedItemColor: Colors.blue, // Set selected item color
-          unselectedItemColor: Colors.black, // Set unselected item color
+          unselectedItemColor: Colors.black,
+
+          // Set unselected item color
         ),
       ),
     );

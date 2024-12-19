@@ -144,6 +144,46 @@ class _BookSlotPageState extends State<BookSlotPage> {
   DateTime? _selectedDay;
   TimeOfDay? _selectedTime;
 
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Method to update booking in Firestore
+  Future<void> _updateBookingInFirestore() async {
+    try {
+      await _firestore.collection('bookings').add({
+        'testName': widget.testName,
+        'date': _selectedDay?.toIso8601String().split('T').first ?? '',
+        'time': _selectedTime?.format(context) ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error updating Firestore: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error updating booking. Try again!")),
+      );
+    }
+  }
+
+  void _confirmBooking() async {
+    if (_selectedDay != null && _selectedTime != null) {
+      await _updateBookingInFirestore(); // Update Firestore with booking data
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SuccessPage(
+            testName: widget.testName,
+            selectedDate: _selectedDay!,
+            selectedTime: _selectedTime!,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select both date and time!")),
+      );
+    }
+  }
+
   void _selectTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -154,19 +194,6 @@ class _BookSlotPageState extends State<BookSlotPage> {
       setState(() {
         _selectedTime = picked;
       });
-    }
-  }
-
-  void _confirmBooking() {
-    if (_selectedDay != null && _selectedTime != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const SuccessPage()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select both date and time!")),
-      );
     }
   }
 
@@ -192,11 +219,10 @@ class _BookSlotPageState extends State<BookSlotPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Calendar Widget
                   Text(
                     "Select Date:",
-                    style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   TableCalendar(
@@ -223,12 +249,10 @@ class _BookSlotPageState extends State<BookSlotPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Time Picker
                   Text(
                     "Select Time:",
-                    style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   ListTile(
@@ -249,8 +273,6 @@ class _BookSlotPageState extends State<BookSlotPage> {
               ),
             ),
           ),
-
-          // Confirm Button at Bottom
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
@@ -277,9 +299,17 @@ class _BookSlotPageState extends State<BookSlotPage> {
   }
 }
 
-
 class SuccessPage extends StatelessWidget {
-  const SuccessPage({super.key});
+  final String testName;
+  final DateTime selectedDate;
+  final TimeOfDay selectedTime;
+
+  const SuccessPage({
+    super.key,
+    required this.testName,
+    required this.selectedDate,
+    required this.selectedTime,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -288,70 +318,31 @@ class SuccessPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Thin Circle with Icon
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.green, // Thin green border
-                  width: 4, // Border thickness
-                ),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 80, // Icon size
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Success Message
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            const SizedBox(height: 20),
             const Text(
               "Booking Successful!",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            const Text(
-              "Your test slot has been booked successfully.",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black54,
-              ),
+            Text(
+              "Test: $testName\n"
+                  "Date: ${selectedDate.toLocal().toString().split(' ')[0]}\n"
+                  "Time: ${selectedTime.format(context)}",
+              style: const TextStyle(fontSize: 18, color: Colors.black54),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
-
-            // Go Home Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green, // Button color
-                  foregroundColor: Colors.white, // Text color
-                  minimumSize: const Size(double.infinity, 50), // Full-width button
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10), // Rounded corners
-                  ),
-                ),
-                child: const Text(
-                  "Go to Home",
-                  style: TextStyle(fontSize: 18),
-                ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                minimumSize: const Size(200, 50),
               ),
+              child: const Text("Go Back to Home"),
             ),
           ],
         ),
