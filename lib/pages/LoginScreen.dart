@@ -25,7 +25,7 @@ class _LoginscreenState extends State<Loginscreen> {
         style: const TextStyle(color: Colors.white),
       ),
       backgroundColor: isSuccess ? Colors.blue[900] : Colors.red[900],
-      behavior: SnackBarBehavior.floating, // Makes it float above other elements
+      behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -55,34 +55,27 @@ class _LoginscreenState extends State<Loginscreen> {
 
   Future<void> _loginWithGoogle() async {
     try {
-      // Trigger Google Sign-In flow
       final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser  = await googleSignIn.signIn();
 
-      if (googleUser == null) {
+      if (googleUser  == null) {
         _showSnackbar("Google Sign-In canceled.", false);
-        return; // Exit if the user cancels the sign-in
+        return;
       }
 
-      // Obtain the Google authentication details
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser .authentication;
 
-      // Generate Firebase credential using Google access tokens
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Authenticate with Firebase using the credential
       UserCredential userCredential = await _auth.signInWithCredential(credential);
+      _showSnackbar("Welcome, ${userCredential.user?.displayName ?? 'User '}!", true);
 
-      // Success message
-      _showSnackbar("Welcome, ${userCredential.user?.displayName ?? 'User'}!", true);
-
-      // Navigate to the home page
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const Homepage()), // Replace with your home page
+        MaterialPageRoute(builder: (context) => const Homepage()),
       );
     } catch (e) {
       print("Error during Google Sign-In: $e");
@@ -93,118 +86,135 @@ class _LoginscreenState extends State<Loginscreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Login Title
-                Text(
-                  "Login",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue[300]!, Colors.blue[600]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(height: 30),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Login Title
+                      Text(
+                        "Login",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.nunito(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                // Username TextField
-                TextField(
-                  controller: _usernameController,
-                  style: GoogleFonts.nunito(),
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: GoogleFonts.nunito(),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.email),
-                  ),
-                ),
-                const SizedBox(height: 20),
+                      // Username TextField
+                      TextField(
+                        controller: _usernameController,
+                        style: GoogleFonts.nunito(),
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          labelStyle: GoogleFonts.nunito(),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.email),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                // Password TextField
-                TextField(
-                  controller: _passwordController,
-                  style: GoogleFonts.nunito(),
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    labelStyle: GoogleFonts.nunito(),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 30),
+                      // Password TextField
+                      TextField(
+                        controller: _passwordController,
+                        style: GoogleFonts.nunito(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          labelStyle: GoogleFonts.nunito(),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.lock),
+                        ),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 30),
 
-                // Login Button
-                ElevatedButton(
-                  onPressed: _loginWithEmailPassword,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromRGBO(29, 54, 107, 1),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Login',
-                    style: GoogleFonts.nunito(color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Google Login Button
-                OutlinedButton.icon(
-                  onPressed: _loginWithGoogle,
-                  icon: Image.asset(
-                    'assets/icons/google.png',
-                    height: 24,
-                  ),
-                  label: Text(
-                    'Login with Google',
-                    style: GoogleFonts.nunito(color: Colors.black),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Sign Up Navigation
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Don't have an account? ",
-                      style: GoogleFonts.nunito(color: Colors.blue),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const Signupscreen(),
+                      // Login Button
+                      ElevatedButton(
+                        onPressed: _loginWithEmailPassword,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromRGBO(29, 54, 107, 1),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        );
-                      },
-                      child: Text(
-                        "Sign Up",
-                        style: GoogleFonts.nunito(color: Colors.blue),
+                        ),
+                        child: Text(
+                          'Login',
+                          style: GoogleFonts.nunito(color: Colors.white),
+                        ),
                       ),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero, // Remove padding from TextButton
+                      const SizedBox(height: 20),
+
+                      // Google Login Button
+                      OutlinedButton.icon(
+                        onPressed: _loginWithGoogle,
+                        icon: Image.asset(
+                          'assets/icons/google.png',
+                          height: 24,
+                        ),
+                        label: Text(
+                          'Login with Google',
+                          style: GoogleFonts.nunito(color: Colors.black),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+
+                      // Sign Up Navigation
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Don't have an account? ",
+                            style: GoogleFonts.nunito(color: Colors.black),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const Signupscreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              "Sign Up",
+                              style: GoogleFonts.nunito(color: Colors.blue),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ),

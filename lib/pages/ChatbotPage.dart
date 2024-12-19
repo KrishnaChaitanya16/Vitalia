@@ -13,7 +13,7 @@ class ChatbotPage extends StatefulWidget {
 class _ChatbotPageState extends State<ChatbotPage> {
   final TextEditingController _messageController = TextEditingController();
   List<Map<String, String>> _chatHistory = [];
-  final String apiKey = "AIzaSyDAeziBDdB9NcfUXNo5f_rTINVB6-CyoHE"; // Add your actual API key here
+  final String apiKey = "AIzaSyC7E75oqg9P322SFRyMZ7gwRZ6RgjPnOpk"; // Add your actual API key here
   final ScrollController _scrollController = ScrollController();
 
   Future<void> _sendMessage(String message) async {
@@ -24,7 +24,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     });
 
     final url = Uri.parse(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey");
+        "https://generativelanguage.googleapis.com/v1beta/tunedModels/medicalchatbotvitalia-3lhnnicj69h6:generateContent?key=$apiKey");
 
     try {
       final response = await http.post(
@@ -77,7 +77,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
       });
     }
   }
-
 
 
   void _scrollToBottom() {

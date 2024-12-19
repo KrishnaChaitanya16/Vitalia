@@ -80,6 +80,7 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
         backgroundColor: Colors.white,// Adjust the shadow color and opacity
       ),
       body: Padding(
+
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
@@ -99,6 +100,11 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
                 final selectedSlot = appointment['selectedSlot'];
 
                 return Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12), // Rounded corners
+                  ),
+                    shadowColor: Colors.black54.withOpacity(0.2),
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                   color: Colors.lightBlueAccent.shade100.withOpacity(0.7),
                   child: ListTile(
@@ -134,6 +140,12 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
                 final selectedSlot = appointment['selectedSlot'];
 
                 return Card(
+                  color: Colors.white,
+                  shadowColor: Colors.black54.withOpacity(0.2),
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12), // Rounded corners
+                  ),
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                   child: Column(
                     children: [

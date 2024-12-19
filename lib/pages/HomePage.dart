@@ -34,7 +34,7 @@ class _HomepageState extends State<Homepage> {
   int _currentCharIndex = 0;
   Timer? _typingTimer;
 
-   // Placeholder until the name is fetched
+  // Placeholder until the name is fetched
   String? _profileImageUrl; // Null if no custom profile image
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 // Initial placeholder
@@ -304,7 +304,7 @@ class _HomepageState extends State<Homepage> {
                         style: GoogleFonts.nunito(fontSize: 16),
                       ),
                       onTap: () {
-                       Navigator.push(context, MaterialPageRoute(builder: (context)=>Bookappointmentpage()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>Bookappointmentpage()));
                         // Navigate to Appointments Page
                       },
                     ),
@@ -371,12 +371,12 @@ class _HomepageState extends State<Homepage> {
         shadowColor: Colors.black12,
         leading: Builder(
             builder:(context)=>IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
+              icon: const Icon(Icons.menu, color: Colors.black),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
 
-          },
-        )),
+              },
+            )),
         title: _isLoading
             ? null
             : Text(
@@ -411,7 +411,7 @@ class _HomepageState extends State<Homepage> {
                         MaterialPageRoute(
                           builder: (context) =>
                               SearchResultsPage(
-                                query: query
+                                  query: query
 
                               ),
                         ),
@@ -561,7 +561,7 @@ class _HomepageState extends State<Homepage> {
                       SizedBox(height: 20), // Adds space before the button
                       ElevatedButton(
                         onPressed: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
                         },
                         child: const Text('Start Chat',style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
@@ -609,7 +609,7 @@ class _HomepageState extends State<Homepage> {
                         // Navigate to Specialistspage with the specialty name
                         if(index==_specialists.length-1){
                           Navigator.push(context, MaterialPageRoute(builder: (context)=>Allspecialistspage() ));
-                          
+
                         }else {
                           Navigator.push(
                             context,

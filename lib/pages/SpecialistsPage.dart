@@ -284,7 +284,7 @@ class _SpecialistspageState extends State<Specialistspage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.specialistType),
+        title: Text(widget.specialistType,style: TextStyle(fontWeight: FontWeight.w500),),
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
