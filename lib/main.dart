@@ -42,6 +42,7 @@ class MyApp extends StatelessWidget {
           color: Colors.white
         ),
 
+
         inputDecorationTheme: InputDecorationTheme(
           focusedBorder: OutlineInputBorder(
             borderSide: BorderSide(
@@ -51,7 +52,8 @@ class MyApp extends StatelessWidget {
 
               
             
-          )
+          ),
+              labelStyle: TextStyle(color: Colors.black),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.grey[200], // Grayish background for BottomNavigationBar
@@ -60,7 +62,25 @@ class MyApp extends StatelessWidget {
 
           // Set unselected item color
         ),
+        drawerTheme: DrawerThemeData(
+          backgroundColor: Colors.transparent,
+
+
+        )
+
       ),
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[300]!, Colors.blue[600]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: child, // Applies gradient to the drawer
+        );
+      },
     );
   }
 }

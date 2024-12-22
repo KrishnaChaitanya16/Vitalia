@@ -17,6 +17,8 @@ import '/pages/FindPharmacy.dart';
 import '/pages/ChatbotPage.dart';
 import '/pages/AllSpecialistsPage.dart';
 import 'dart:async';
+import '/pages/YourTests.dart';
+
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -229,7 +231,11 @@ class _HomepageState extends State<Homepage> {
       backgroundColor: Colors.white,
       drawer: Drawer(
         backgroundColor: Colors.white,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white
+          ),
+        child:Padding(
           padding: const EdgeInsets.only(top: 40.0, left: 16.0, right: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,10 +259,10 @@ class _HomepageState extends State<Homepage> {
                       child: Container(
                         width: 100,
                         height: 100,
-                        color: Colors.white, // Default color background
+                        color: Colors.transparent, // Default color background
                         child: Image.asset(
                           'assets/icons/user (1).png',
-                          color: Colors.grey, // Tint the default image
+                          color: Colors.black, // Tint the default image
                           colorBlendMode: BlendMode.srcIn,
                           fit: BoxFit.contain,
                         ),
@@ -275,6 +281,7 @@ class _HomepageState extends State<Homepage> {
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: Colors.black
                           ),
                         ),
                         Text(
@@ -303,8 +310,10 @@ class _HomepageState extends State<Homepage> {
                         "Your Appointments",
                         style: GoogleFonts.nunito(fontSize: 16),
                       ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context)=>Bookappointmentpage()));
+                        Navigator.push(
+                            context, MaterialPageRoute(builder: (context) => Bookappointmentpage()));
                         // Navigate to Appointments Page
                       },
                     ),
@@ -315,8 +324,9 @@ class _HomepageState extends State<Homepage> {
                         "Your Tests",
                         style: GoogleFonts.nunito(fontSize: 16),
                       ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>Yourtests()));
                         // Navigate to Tests Page
                       },
                     ),
@@ -327,26 +337,29 @@ class _HomepageState extends State<Homepage> {
                         "Profile",
                         style: GoogleFonts.nunito(fontSize: 16),
                       ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>Profilepage()));
                         // Navigate to Profile Page
                       },
                     ),
                     const SizedBox(height: 20), // Spacing between menu items
                     ListTile(
-                      leading: Image.asset('assets/icons/android.png', height: 24),
+                      leading: Image.asset('assets/icons/chatbot1.png', height: 30),
                       title: Text(
                         "Vital AI",
                         style: GoogleFonts.nunito(fontSize: 16),
                       ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
                       onTap: () {
-                        Navigator.pop(context);
-                        // Navigate to Chat with AI Page
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
+
                       },
                     ),
                   ],
                 ),
               ),
+
 
               // Footer Section
               const SizedBox(height: 30), // Space before footer section
@@ -362,7 +375,7 @@ class _HomepageState extends State<Homepage> {
             ],
           ),
         ),
-      )
+      ))
 
       ,
       appBar: AppBar(
@@ -534,6 +547,8 @@ class _HomepageState extends State<Homepage> {
                   decoration: BoxDecoration(
                     color: Colors.lightBlueAccent.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(20),
+
+
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

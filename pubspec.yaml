@@ -53,6 +53,7 @@ dependencies:
   googleapis_auth:
   fl_chart:
   table_calendar:
+  intl:
 
 
 dev_dependencies:
