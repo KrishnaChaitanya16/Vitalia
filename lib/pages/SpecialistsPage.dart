@@ -10,6 +10,9 @@ import '/providers/Location_provider.dart';
 import '/pages/ResultsDisplayPage.dart';
 import 'dart:math';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+
 class Specialistspage extends StatefulWidget {
   final String specialistType;
 
@@ -28,7 +31,7 @@ class _SpecialistspageState extends State<Specialistspage> {
   double userLng = 0.0;
   Set<Polyline> polylines = {};
   final PanelController panelController = PanelController();
-  String googleApiKey = "AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc"; // Replace with your actual API key
+  String googleApiKey = ""; // Replace with your actual API key
 
   late String _mapStyle;
 
@@ -37,7 +40,26 @@ class _SpecialistspageState extends State<Specialistspage> {
     super.initState();
     _loadMapStyle();
     _fetchLocationAndSpecialists();
+    _fetchGoogleApiKey();
   }
+  Future<void> _fetchGoogleApiKey() async {
+    await Firebase.initializeApp(); // Ensure Firebase is initialized
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.fetch(); // Fetch the config
+      await remoteConfig.activate(); // Activate the fetched config
+
+      final String fetchedApiKey = remoteConfig.getString('google_maps_api_key');
+      setState(() {
+        googleApiKey = fetchedApiKey;
+      });
+
+      print("Google Maps API Key fetched from Remote Config: $googleApiKey");
+    } catch (e) {
+      print("Error fetching API key: $e");
+    }
+  }
+
 
   void _loadMapStyle() async {
     try {

@@ -54,6 +54,8 @@ dependencies:
   fl_chart:
   table_calendar:
   intl:
+  flutter_dotenv:
+  firebase_remote_config:
 
 
 dev_dependencies:

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart'; // Add Remote Config import
 import '/pages/Testspage.dart'; // Import the Testspage
 
 class Booktests extends StatefulWidget {
@@ -18,19 +19,42 @@ class _BooktestsState extends State<Booktests> {
   Position? _currentPosition;
   TextEditingController _searchController = TextEditingController();
 
-  final String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc';
+  String? _apiKey;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _initializeRemoteConfig();
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _initializeRemoteConfig() async {
     setState(() {
       _isLoading = true;
     });
 
+    try {
+      // Initialize and fetch Remote Config
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(hours: 1),
+      ));
+      await remoteConfig.fetchAndActivate();
+
+      // Get the API key
+      _apiKey = remoteConfig.getString('google_maps_api_key');
+
+      // Fetch current location and search results
+      await _getCurrentLocation();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError("Failed to initialize Remote Config: $e");
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
@@ -49,13 +73,13 @@ class _BooktestsState extends State<Booktests> {
   }
 
   Future<void> _fetchSearchResults() async {
-    if (_currentPosition == null) return;
+    if (_currentPosition == null || _apiKey == null) return;
 
     final lat = _currentPosition!.latitude;
     final lng = _currentPosition!.longitude;
 
     final url =
-        'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$lat,$lng&radius=5000&keyword=diagnostic+center&key=$apiKey';
+        'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$lat,$lng&radius=5000&keyword=diagnostic+center&key=$_apiKey';
 
     try {
       final response = await http.get(Uri.parse(url));

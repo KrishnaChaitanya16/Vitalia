@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class ChatbotPage extends StatefulWidget {
   const ChatbotPage({super.key});
@@ -13,15 +14,50 @@ class ChatbotPage extends StatefulWidget {
 class _ChatbotPageState extends State<ChatbotPage> {
   final TextEditingController _messageController = TextEditingController();
   List<Map<String, String>> _chatHistory = [];
-  final String apiKey = "AIzaSyC7E75oqg9P322SFRyMZ7gwRZ6RgjPnOpk"; // Add your actual API key here
+  String apiKey = ""; // Add your actual API key here
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchApiKey();
+  }
+
+  Future<void> _fetchApiKey() async {
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.fetchAndActivate();
+      final fetchedApiKey = remoteConfig.getString('gemini');
+      if (fetchedApiKey.isNotEmpty) {
+        setState(() {
+          apiKey = fetchedApiKey;
+        });
+      } else {
+        print("API key not available in Remote Config");
+      }
+    } catch (e) {
+      print("Error fetching API key: $e");
+    }
+  }
 
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
 
     setState(() {
       _chatHistory.add({"role": "user", "content": message});
+      _chatHistory.add({"role": "bot", "content": "typing..."});
     });
+
+    if (apiKey.isEmpty) {
+      setState(() {
+        _chatHistory.removeLast(); // Remove the typing indicator
+        _chatHistory.add({
+          "role": "bot",
+          "content": "API key is not available. Please try again later."
+        });
+      });
+      return;
+    }
 
     final url = Uri.parse(
         "https://generativelanguage.googleapis.com/v1beta/tunedModels/medicalchatbotvitalia-3lhnnicj69h6:generateContent?key=$apiKey");
@@ -42,6 +78,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
           ]
         }),
       );
+
+      setState(() {
+        _chatHistory.removeLast(); // Remove the typing indicator
+      });
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -73,11 +113,11 @@ class _ChatbotPageState extends State<ChatbotPage> {
       }
     } catch (e) {
       setState(() {
+        _chatHistory.removeLast(); // Remove the typing indicator
         _chatHistory.add({"role": "bot", "content": "Error: $e"});
       });
     }
   }
-
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -186,6 +226,49 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 itemBuilder: (context, index) {
                   final chat = _chatHistory[index];
                   final isUser = chat["role"] == "user";
+
+                  if (chat["content"] == "typing...") {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 5),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: Colors.white,
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/icons/chatbot1.png',
+                                    fit: BoxFit.cover,
+                                    width: 40,
+                                    height: 40,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade400,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  children: const [
+                                    DotWidget(),
+                                    DotWidget(delay: Duration(milliseconds: 200)),
+                                    DotWidget(delay: Duration(milliseconds: 400)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: Row(
@@ -241,7 +324,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                             child: _buildFormattedText(chat["content"] ?? ""),
                           ),
                         ),
-                        if(isUser)
+                        if (isUser)
                           Container(
                             margin: const EdgeInsets.only(left: 8),
                             child: CircleAvatar(
@@ -349,5 +432,54 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
       ),
     );
+  }
+}
+
+class DotWidget extends StatefulWidget {
+  final Duration delay;
+  const DotWidget({Key? key, this.delay = const Duration(milliseconds: 0)})
+      : super(key: key);
+
+  @override
+  _DotWidgetState createState() => _DotWidgetState();
+}
+
+class _DotWidgetState extends State<DotWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller.drive(
+        Tween(begin: 0.2, end: 1.0).chain(
+          CurveTween(curve: Interval(0, 1.0, curve: Curves.easeInOut)),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        width: 6,
+        height: 6,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }

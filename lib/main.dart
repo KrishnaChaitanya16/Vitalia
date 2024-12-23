@@ -3,9 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import '/providers/Location_provider.dart';  // Import LocationProvider
 import '/pages/LoginScreen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: FirebaseOptions(
       apiKey: "AIzaSyB4x-t_owBbMSSr_ZzUWhKT8iWV0n8XFM4",

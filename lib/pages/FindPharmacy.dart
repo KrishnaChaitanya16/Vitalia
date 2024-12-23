@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class Findpharmacy extends StatefulWidget {
   const Findpharmacy({super.key});
@@ -18,12 +19,39 @@ class _FindpharmacyState extends State<Findpharmacy> {
   TextEditingController _searchController = TextEditingController();
 
   // Replace with your Google API Key
-  final String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc'; // Add your API Key here
+   String apiKey = ''; // Add your API Key here
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation(); // Get current location when page is initialized
+    _getCurrentLocation();
+    _initializeRemoteConfig();// Get current location when page is initialized
+  }
+  Future<void> _initializeRemoteConfig() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'google_maps_api_key': 'default_api_key', // Set a default API key (optional)
+      });
+      await remoteConfig.fetchAndActivate();
+      apiKey = remoteConfig.getString('google_maps_api_key');
+
+      if (apiKey == null || apiKey!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+      _getCurrentLocation();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError("Failed to fetch API key from Remote Config.");
+    }
   }
 
   // Get current user location using Geolocator

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis_auth/googleapis_auth.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class Mybillspage extends StatefulWidget {
   const Mybillspage({super.key});
@@ -23,6 +24,8 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   );
   GoogleSignInAccount? _currentUser;
+  String api3="";
+  String api4="";
 
   @override
   void initState() {
@@ -42,14 +45,17 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       }
     });
     _googleSignIn.signInSilently();
+    _initializeRemoteConfig();
     _fetchUploadedReceipts();
     _fetchUploadedBills();
+
   }
 
   @override
   void dispose() {
     _tabController.dispose(); // Dispose TabController when done
     super.dispose();
+
   }
 
 
@@ -60,6 +66,62 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     _currentUser = await googleSignIn.signIn();
     setState(() {});
   }
+  Future<void> _initializeRemoteConfig() async {
+
+
+
+
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'api': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      await remoteConfig.activate();
+      print("Fetch status: $fetchStatus");
+      api3 = remoteConfig.getString('apiurl3');
+
+      if (api3 == null || api3!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+
+    } catch (e) {
+
+      print("Failed to fetch API key from Remote Config.");
+    }
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.activate();
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'api4': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      print("Fetch status: $fetchStatus");
+      api4 = remoteConfig.getString('apiurl4');
+
+      if (api4 == null || api4!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+
+    } catch (e) {
+
+      print("Failed to fetch API key from Remote Config.");
+    }
+  }
+
 
   // Google Sign-Out logic
   Future<void> _signOutFromGoogle() async {
@@ -231,10 +293,10 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         return;
       }
 
-      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_bills/o';
+
 
       final response = await http.get(
-        Uri.parse(apiUrl),
+        Uri.parse(api3),
         headers: {
           'Authorization': 'Bearer $accessToken', // Use the Google OAuth2 token
         },
@@ -295,10 +357,10 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         return;
       }
 
-      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_bills1/o';
+
 
       final response = await http.get(
-        Uri.parse(apiUrl),
+        Uri.parse(api4),
         headers: {
           'Authorization': 'Bearer $accessToken', // Use the Google OAuth2 token
         },
@@ -389,7 +451,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     }
 
     final apiUrl =
-        'https://storage.googleapis.com/upload/storage/v1/b/health_bills/o?uploadType=media&name=$fileName';
+        '${api3}?uploadType=media&name=$fileName';
 
     try {
       // Make the upload request
@@ -469,7 +531,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     }
 
     final apiUrl =
-        'https://storage.googleapis.com/upload/storage/v1/b/health_bills1/o?uploadType=media&name=$fileName';
+        '${api4}?uploadType=media&name=$fileName';
 
     try {
       // Make the upload request

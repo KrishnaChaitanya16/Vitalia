@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/googleapis_auth.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class Profilepage extends StatefulWidget {
   const Profilepage({Key? key}) : super(key: key);
@@ -26,11 +27,13 @@ class _ProfilepageState extends State<Profilepage> {
   late String dob = 'Unknown';
   List<Map<String, dynamic>> _uploadedRecords = [];
   bool _isLoading = true;
+  String baseUrl="";
 
   @override
   void initState() {
     super.initState();
     _initializeUserData();
+    _initializeRemoteConfig();
   }
 
   Future<void> _initializeUserData() async {
@@ -69,8 +72,32 @@ class _ProfilepageState extends State<Profilepage> {
       _showSnackBar('Error fetching user data: $e');
     }
   }
+  Future<void> _initializeRemoteConfig() async {
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 60),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'baseUrl': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      print("Fetch status: $fetchStatus");
+      baseUrl = remoteConfig.getString('baseurl');
 
-  Future<void> _fetchPatientRecords() async {
+      if (baseUrl == null || baseUrl!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+      _fetchPatientRecords();
+    } catch (e) {
+      print("Failed to fetch API key from Remote Config.");
+    }
+  }
+
+    Future<void> _fetchPatientRecords() async {
     if (_currentUser == null) {
       await _signIn();
       if (_currentUser == null) {
@@ -96,8 +123,6 @@ class _ProfilepageState extends State<Profilepage> {
       ),
     );
 
-    final baseUrl =
-        'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir';
 
     try {
       final firebaseUser = FirebaseAuth.instance.currentUser;

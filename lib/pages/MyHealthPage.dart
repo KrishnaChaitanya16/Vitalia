@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class MyHealthPage extends StatefulWidget {
   const MyHealthPage({super.key});
@@ -30,6 +31,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
   GoogleSignInAccount? _currentUser;
 
+
   @override
   void initState() {
     super.initState();
@@ -45,8 +47,12 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       }
     });
     _googleSignIn.signInSilently();
+    _initializeRemoteConfig();
     _fetchPatientRecords();
   }
+  String? baseUrl;
+  String api1="";
+  String api2="";
 
   @override
   void dispose() {
@@ -61,6 +67,83 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       print("Error signing in: $e");
     }
   }
+
+  Future<void> _initializeRemoteConfig() async {
+
+
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 60),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'baseUrl': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      print("Fetch status: $fetchStatus");
+      baseUrl = remoteConfig.getString('baseurl');
+
+      if (baseUrl == null || baseUrl!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+      _fetchPatientRecords();
+    } catch (e) {
+
+      print("Failed to fetch API key from Remote Config.");
+    }
+
+
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 60),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'api': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      print("Fetch status: $fetchStatus");
+      api1 = remoteConfig.getString('apiurl1');
+
+      if (api1 == null || api1!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+      _fetchPatientRecords();
+    } catch (e) {
+
+      print("Failed to fetch API key from Remote Config.");
+    }
+    try {
+      FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 60),
+        minimumFetchInterval: const Duration(seconds: 0), // Fetch every time
+      ));
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults(<String, dynamic>{
+        'api2': 'default_api_key', // Set a default API key (optional)
+      });
+      final fetchStatus = await remoteConfig.fetchAndActivate();
+      print("Fetch status: $fetchStatus");
+      api2 = remoteConfig.getString('apiurl2');
+
+      if (api2 == null || api2!.isEmpty) {
+        throw Exception("API key not found in Remote Config");
+      }
+
+      // Fetch location after successfully fetching the API key
+      _fetchPatientRecords();
+    } catch (e) {
+
+      print("Failed to fetch API key from Remote Config.");
+    }
+  }
+
 
   Future<void> _fetchPatientRecords() async {
     if (_currentUser == null) {
@@ -89,7 +172,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       ),
     );
 
-    final baseUrl = 'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir';
+
 
     try {
       // Step 1: Get the current Firebase user to fetch their UID
@@ -191,10 +274,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         return;
       }
 
-      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_care_bucket_10/o';
+
 
       final response = await http.get(
-        Uri.parse(apiUrl),
+        Uri.parse(api1),
         headers: {
           'Authorization': 'Bearer $accessToken',
         },
@@ -254,10 +337,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         return;
       }
 
-      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_car_bucket_11/o';
+
 
       final response = await http.get(
-        Uri.parse(apiUrl),
+        Uri.parse(api2),
         headers: {
           'Authorization': 'Bearer $accessToken',
         },
@@ -328,13 +411,13 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
     final token = await _currentUser!.authentication;
     final apiUrl =
-        'https://storage.googleapis.com/upload/storage/v1/b/health_care_bucket_10/o?uploadType=media&name=$fileName';
+        '${api1}?uploadType=media&name=$fileName';
 
     try {
       var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
 
       final response = await http.post(
-        Uri.parse(apiUrl),
+        Uri.parse(api2),
         headers: {
           'Authorization': 'Bearer ${token.accessToken}',
           'Content-Type': 'application/pdf',
@@ -392,7 +475,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
     final token = await _currentUser!.authentication;
     final apiUrl =
-        'https://storage.googleapis.com/upload/storage/v1/b/health_car_bucket_11/o?uploadType=media&name=$fileName';
+        '${api2}?uploadType=media&name=$fileName';
 
     try {
       var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();

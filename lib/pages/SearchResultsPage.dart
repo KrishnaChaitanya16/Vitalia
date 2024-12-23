@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'ResultsDisplayPage.dart'; // Import the ResultsDisplayPage
 
 class SearchResultsPage extends StatefulWidget {
   final String query;
@@ -18,25 +20,34 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   List<dynamic> _searchResults = [];
   Position? _currentPosition;
   TextEditingController _searchController = TextEditingController();
-
-  // Replace with your Google API Key
-  final String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc';
+  String apiKey = ""; // Variable to store the API key
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     _searchController.text = widget.query; // Set initial value
+    _fetchApiKey(); // Fetch the API key from Firebase Remote Config
   }
 
-  // Get current user location using Geolocator
+  Future<void> _fetchApiKey() async {
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.fetchAndActivate();
+      setState(() {
+        apiKey = remoteConfig.getString('google_maps_api_key');
+      });
+    } catch (e) {
+      _showError("Failed to fetch API key.");
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Request location permission and get the current position
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         _showError("Location permission is required.");
@@ -44,8 +55,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       }
 
       _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-      // Fetch search results after getting the location
       _fetchSearchResults();
     } catch (e) {
       setState(() {
@@ -55,15 +64,13 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     }
   }
 
-  // Fetch search results using Google Places API
   Future<void> _fetchSearchResults() async {
-    if (_currentPosition == null) return;
+    if (_currentPosition == null || apiKey.isEmpty) return;
 
-    final String query = _searchController.text.trim(); // Get query from search bar
+    final String query = _searchController.text.trim();
     final lat = _currentPosition!.latitude;
     final lng = _currentPosition!.longitude;
 
-    // Construct the URL for Google Places API (Nearby Search)
     final url =
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$lat,$lng&radius=5000&keyword=$query&key=$apiKey';
 
@@ -90,7 +97,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     }
   }
 
-  // Show error message in case of failure
   void _showError(String message) {
     showDialog(
       context: context,
@@ -110,7 +116,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Set entire background to white
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Search Results for "${widget.query}"',
@@ -134,7 +140,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                 ),
               ),
               onSubmitted: (_) {
-                // Trigger search when the user submits a query
                 setState(() {
                   _isLoading = true;
                 });
@@ -164,7 +169,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    color: Colors.white, // Set card color to white
+                    color: Colors.white,
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: Colors.white.withOpacity(1),
@@ -179,25 +184,13 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         style: GoogleFonts.nunito(fontSize: 14, color: Colors.black54),
                       ),
                       onTap: () {
-                        // Open result link in Google Maps or browser
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Open Link'),
-                            content: Text('Open ${result['place_id']}?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  // Handle opening the place in Google Maps
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('Open'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-                            ],
+                        // Navigate to ResultsDisplayPage on tap
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ResultsDisplayPage(
+                              specialist: result, // Pass the selected specialist details
+                            ),
                           ),
                         );
                       },

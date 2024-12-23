@@ -33,6 +33,7 @@ class _HomepageState extends State<Homepage> {
   TextEditingController _searchController = TextEditingController();
   String _searchPlaceholder = 'Search by Speciality';
 
+
   int _currentCharIndex = 0;
   Timer? _typingTimer;
 
@@ -226,6 +227,9 @@ class _HomepageState extends State<Homepage> {
   Widget build(BuildContext context) {
     // Access the LocationProvider using Provider.of
     final locationProvider = Provider.of<LocationProvider>(context);
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final screenWidth = mediaQuery.size.width;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -236,7 +240,7 @@ class _HomepageState extends State<Homepage> {
             color: Colors.white
           ),
         child:Padding(
-          padding: const EdgeInsets.only(top: 40.0, left: 16.0, right: 16.0),
+          padding:  EdgeInsets.only(top: screenHeight*0.05 , left: screenWidth*0.04, right: screenWidth*0.04),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -244,21 +248,21 @@ class _HomepageState extends State<Homepage> {
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 50,
+                    radius: screenWidth * 0.1,
                     backgroundColor: Colors.grey[200],
                     child: _profileImageUrl != null
                         ? ClipOval(
                       child: Image.network(
                         _profileImageUrl!,
-                        width: 100,
-                        height: 100,
+                        width: screenWidth * 0.26,
+                        height: screenWidth * 0.26,
                         fit: BoxFit.cover,
                       ),
                     )
                         : ClipOval(
                       child: Container(
-                        width: 100,
-                        height: 100,
+                        width: screenWidth * 0.26,
+                        height: screenWidth * 0.26,
                         color: Colors.transparent, // Default color background
                         child: Image.asset(
                           'assets/icons/user (1).png',
@@ -271,7 +275,7 @@ class _HomepageState extends State<Homepage> {
                   ),
 
 
-                  const SizedBox(width: 16),
+                   SizedBox(width: screenWidth * 0.02),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,7 +283,7 @@ class _HomepageState extends State<Homepage> {
                         Text(
                           _userName,
                           style: GoogleFonts.nunito(
-                            fontSize: 18,
+                            fontSize: screenWidth * 0.045,
                             fontWeight: FontWeight.bold,
                             color: Colors.black
                           ),
@@ -287,7 +291,7 @@ class _HomepageState extends State<Homepage> {
                         Text(
                           "View and edit profile",
                           style: GoogleFonts.nunito(
-                            fontSize: 14,
+                            fontSize: screenWidth * 0.035,
                             color: Colors.grey,
                           ),
                         ),
@@ -296,61 +300,61 @@ class _HomepageState extends State<Homepage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 30), // Increased spacing below the profile section
+               SizedBox(height: screenHeight * 0.03), // Increased spacing below the profile section
               const Divider(thickness: 1, color: Colors.grey),
-              const SizedBox(height: 30), // Increased spacing below the divider
+               SizedBox(height: screenHeight * 0.03), // Increased spacing below the divider
 
               // Menu Items
               Expanded(
                 child: ListView(
                   children: [
                     ListTile(
-                      leading: Image.asset('assets/icons/appointment.png', height: 24),
+                      leading: Image.asset('assets/icons/appointment.png', height: screenHeight * 0.03),
                       title: Text(
                         "Your Appointments",
-                        style: GoogleFonts.nunito(fontSize: 16),
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
                       ),
-                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
                       onTap: () {
                         Navigator.push(
                             context, MaterialPageRoute(builder: (context) => Bookappointmentpage()));
                         // Navigate to Appointments Page
                       },
                     ),
-                    const SizedBox(height: 20), // Spacing between menu items
+                     SizedBox(height: screenHeight * 0.02), // Spacing between menu items
                     ListTile(
-                      leading: Image.asset('assets/icons/tests.png', height: 24),
+                      leading: Image.asset('assets/icons/tests.png', height: screenHeight * 0.03),
                       title: Text(
                         "Your Tests",
-                        style: GoogleFonts.nunito(fontSize: 16),
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
                       ),
-                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (context)=>Yourtests()));
                         // Navigate to Tests Page
                       },
                     ),
-                    const SizedBox(height: 20), // Spacing between menu items
+                     SizedBox(height: screenHeight * 0.02), // Spacing between menu items
                     ListTile(
-                      leading: Image.asset('assets/icons/user (1).png', height: 24),
+                      leading: Image.asset('assets/icons/user (1).png', height: screenHeight * 0.03),
                       title: Text(
                         "Profile",
-                        style: GoogleFonts.nunito(fontSize: 16),
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
                       ),
-                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (context)=>Profilepage()));
                         // Navigate to Profile Page
                       },
                     ),
-                    const SizedBox(height: 20), // Spacing between menu items
+                     SizedBox(height: screenHeight * 0.02), // Spacing between menu items
                     ListTile(
-                      leading: Image.asset('assets/icons/chatbot1.png', height: 30),
+                      leading: Image.asset('assets/icons/chatbot1.png', height: screenHeight * 0.04),
                       title: Text(
                         "Vital AI",
-                        style: GoogleFonts.nunito(fontSize: 16),
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
                       ),
-                      trailing:  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade700),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
 
@@ -362,14 +366,14 @@ class _HomepageState extends State<Homepage> {
 
 
               // Footer Section
-              const SizedBox(height: 30), // Space before footer section
+               SizedBox(height: screenHeight * 0.03), // Space before footer section
               const Divider(thickness: 1, color: Colors.grey),
-              const SizedBox(height: 10),
+               SizedBox(height: screenHeight * 0.01),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   "Version 1.0.0",
-                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey),
+                  style: GoogleFonts.nunito(fontSize: screenHeight * 0.012, color: Colors.grey),
                 ),
               ),
             ],
@@ -396,7 +400,7 @@ class _HomepageState extends State<Homepage> {
           'Hello, ${_userName.length > 7
               ? _userName.substring(0, 7)
               : _userName}',
-          style: GoogleFonts.nunito(color: Colors.black, fontSize: 22,fontWeight: FontWeight.bold),
+          style: GoogleFonts.nunito(color: Colors.black, fontSize: screenHeight * 0.022,fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
@@ -408,13 +412,14 @@ class _HomepageState extends State<Homepage> {
         ],
       ),
       body: RefreshIndicator(
+        color: Colors.lightBlue,
         onRefresh: _getUserDetails,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding:  EdgeInsets.all(screenHeight * 0.01),
                 child: TextField(
                   controller: _searchController,
                   onSubmitted: (query) {
@@ -434,9 +439,9 @@ class _HomepageState extends State<Homepage> {
                   decoration: InputDecoration(
                     hintText: _searchPlaceholder,
                     hintStyle: GoogleFonts.nunito(
-                        color: Colors.black45, fontSize: 18),
+                        color: Colors.black45, fontSize: screenHeight * 0.018),
                     prefixIcon: const Icon(
-                        Icons.search, color: Color.fromRGBO(29, 54, 107, 1)),
+                        Icons.search, color: Color.fromRGBO(29, 79, 153, 1)),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -447,24 +452,24 @@ class _HomepageState extends State<Homepage> {
                     focusedBorder:  OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30)
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 15, horizontal: 20),
+                    contentPadding:  EdgeInsets.symmetric(
+                        vertical: screenHeight * 0.015, horizontal: screenHeight * 0.02),
                   ),
                 ),
               ),
               // Display user's current location from LocationProvider
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 5.0),
+                padding:  EdgeInsets.symmetric(
+                    horizontal: screenHeight * 0.016, vertical: screenHeight * 0.005),
                 child: Row(
                   children: [
                     Icon(Icons.location_on, color: Colors.redAccent),
-                    const SizedBox(width: 8),
+                     SizedBox(width: screenWidth * 0.008),
                     Expanded(
                       child: Text(
                         locationProvider.currentLocation,
                         style: GoogleFonts.nunito(
-                            color: Colors.black, fontSize: 16),
+                            color: Colors.black, fontSize: screenHeight * 0.016),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -472,15 +477,15 @@ class _HomepageState extends State<Homepage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                padding:  EdgeInsets.symmetric(vertical: screenHeight * 0.001),
                 child: SizedBox(
-                  height: 140,
+                  height: screenHeight * 0.14,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: _avatars.length,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                        padding:  EdgeInsets.symmetric(horizontal: screenWidth*0.024),
                         child: Column(
                           children: [
                             GestureDetector(
@@ -511,21 +516,21 @@ class _HomepageState extends State<Homepage> {
                                 // You can add similar navigation for other avatars as needed
                               },
                               child: CircleAvatar(
-                                radius: 35,
+                                radius: screenWidth*0.079,
                                 backgroundColor: Colors.lightBlueAccent.shade100.withOpacity(0.5),
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Image.asset(
                                     _avatars[index]['image']!,
                                     fit: BoxFit.contain,
-                                    height: 60,
-                                    width: 60,
+                                    height: screenWidth*0.11,
+                                    width: screenWidth*0.11,
                                     color: Colors.black,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                             SizedBox(height: screenHeight*0.008),
                             Text(
                               _avatars[index]['label']!,
                               style: GoogleFonts.nunito(fontSize: 14, color: Colors.black),
@@ -540,9 +545,9 @@ class _HomepageState extends State<Homepage> {
               ),
               // Rectangular rounded container
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding:  EdgeInsets.symmetric(horizontal: screenWidth*0.038),
                 child: Container(
-                  height: 150,
+                  height: screenHeight*0.16,
                   width: MediaQuery.of(context).size.width,// Increased height
                   decoration: BoxDecoration(
                     color: Colors.lightBlueAccent.withOpacity(0.5),
@@ -557,23 +562,23 @@ class _HomepageState extends State<Homepage> {
                       Text(
                         'Confused or need help?',
                         style: GoogleFonts.nunito(
-                          fontSize: 18,
+                          fontSize: screenHeight*0.019,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 10), // Adds space between the text and button
+                      SizedBox(height: screenHeight*0.010), // Adds space between the text and button
                       Text(
                         'Chat with VitalAi',
                         style: GoogleFonts.nunito(
-                          fontSize: 16,
+                          fontSize: screenHeight*0.017,
                           fontStyle: FontStyle.italic,
                           color: Colors.black87,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 20), // Adds space before the button
+                      SizedBox(height: screenHeight*0.02), // Adds space before the button
                       ElevatedButton(
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context)=>ChatbotPage()));
@@ -581,7 +586,7 @@ class _HomepageState extends State<Homepage> {
                         child: const Text('Start Chat',style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.withOpacity(1), // Button color
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          padding:  EdgeInsets.symmetric(horizontal: screenHeight*0.032, vertical: screenWidth*0.012),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -592,21 +597,21 @@ class _HomepageState extends State<Homepage> {
                 ),
 
               ),
-              const SizedBox(height: 20),
+               SizedBox(height: screenHeight*0.025),
               // Specialists heading
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding:  EdgeInsets.symmetric(horizontal: screenWidth*0.05),
                 child: Text(
                   'Find a Doctor for your Health Problem',
-                  style: GoogleFonts.nunito(fontSize: 18,
+                  style: GoogleFonts.nunito(fontSize: screenHeight*0.02,
                       fontWeight: FontWeight.bold,
                       color: Colors.black),
                 ),
               ),
-              const SizedBox(height: 10),
+               SizedBox(height: screenHeight*0.015),
               // Specialist types grid
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding:  EdgeInsets.symmetric(horizontal: screenWidth*0.04),
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
@@ -648,15 +653,15 @@ class _HomepageState extends State<Homepage> {
                           children: [
                             Image.asset(
                               _specialists[index]['image']!,
-                              height: 40,
+                              height: screenHeight*0.047,
                               color: const Color.fromRGBO(
                                   29, 54, 107, 1), // Smaller image
                             ),
-                            const SizedBox(height: 8),
+                             SizedBox(height: screenHeight*0.008),
                             Text(
                               _specialists[index]['label']!,
                               style: GoogleFonts.nunito(
-                                  fontSize: 14, color: Colors.black),
+                                  fontSize: screenWidth*0.03, color: Colors.black),
                             ),
                           ],
                         ),
@@ -683,7 +688,7 @@ class _HomepageState extends State<Homepage> {
         unselectedLabelStyle: GoogleFonts.nunito(),
         items: [
           BottomNavigationBarItem(
-            icon: Image.asset('assets/icons/home.png', height: 24),
+            icon: Image.asset('assets/icons/home.png', height: screenHeight*0.024),
             activeIcon: Image.asset(
               'assets/icons/home.png',
               height: 24,
@@ -692,28 +697,28 @@ class _HomepageState extends State<Homepage> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Image.asset('assets/icons/heart-beat.png', height: 24),
+            icon: Image.asset('assets/icons/heart-beat.png', height: screenHeight*0.024),
             activeIcon: Image.asset(
               'assets/icons/heart-beat.png',
-              height: 24,
+              height: screenHeight*0.024,
               color: const Color.fromRGBO(29, 54, 107, 1),
             ),
             label: 'MyHealth',
           ),
           BottomNavigationBarItem(
-            icon: Image.asset('assets/icons/receipt.png', height: 24),
+            icon: Image.asset('assets/icons/receipt.png', height: screenHeight*0.024),
             activeIcon: Image.asset(
               'assets/icons/receipt.png',
-              height: 24,
+              height: screenHeight*0.024,
               color: const Color.fromRGBO(29, 54, 107, 1),
             ),
             label: 'MyBills',
           ),
           BottomNavigationBarItem(
-            icon: Image.asset('assets/icons/user (1).png', height: 24),
+            icon: Image.asset('assets/icons/user (1).png', height: screenHeight*0.024),
             activeIcon: Image.asset(
               'assets/icons/user (1).png',
-              height: 24,
+              height: screenHeight*0.024,
               color: const Color.fromRGBO(29, 54, 107, 1),
             ),
             label: 'Profile',

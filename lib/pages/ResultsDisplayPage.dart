@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '/pages/AppoinmetPage.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class ResultsDisplayPage extends StatefulWidget {
   final Map specialist;
@@ -14,15 +15,29 @@ class ResultsDisplayPage extends StatefulWidget {
 
 class _ResultsDisplayPageState extends State<ResultsDisplayPage> {
   late Future<Map<String, dynamic>> specialistDetails;
+  late String apiKey = "";
 
   @override
   void initState() {
     super.initState();
-    specialistDetails = fetchSpecialistDetails(widget.specialist['place_id']);
+    specialistDetails = Future.value({});
+    _fetchApiKey();
+  }
+
+  Future<void> _fetchApiKey() async {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    await remoteConfig.fetchAndActivate();
+    setState(() {
+      apiKey = remoteConfig.getString('google_maps_api_key');
+      // Now that apiKey is fetched, initialize specialistDetails
+      specialistDetails = fetchSpecialistDetails(widget.specialist['place_id']);
+    });
   }
 
   Future<Map<String, dynamic>> fetchSpecialistDetails(String placeId) async {
-    const String apiKey = 'AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc';
+    if (apiKey.isEmpty) {
+      throw Exception('API Key is not fetched from Remote Config');
+    }
     final url =
         'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey';
     final response = await http.get(Uri.parse(url));
@@ -62,6 +77,7 @@ class _ResultsDisplayPageState extends State<ResultsDisplayPage> {
                 future: specialistDetails,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
+                    // Centering the loading indicator
                     return const Center(child: CircularProgressIndicator());
                   }
 
@@ -79,14 +95,13 @@ class _ResultsDisplayPageState extends State<ResultsDisplayPage> {
                         child: widget.specialist['photos'] != null &&
                             widget.specialist['photos'].isNotEmpty
                             ? Image.network(
-                          'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${widget.specialist['photos'][0]['photo_reference']}&key=AIzaSyBL4yd55ZMxeZ-_tOYY_jQeIF0Gbr5zIUc',
+                          'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${widget.specialist['photos'][0]['photo_reference']}&key=$apiKey',
                           fit: BoxFit.cover,
                           height: MediaQuery.of(context).size.height * 0.40,
                           width: double.infinity,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return const Center(
-                                child: CircularProgressIndicator());
+                            return const Center(child: CircularProgressIndicator());
                           },
                           errorBuilder: (context, error, stackTrace) {
                             return Image.asset(

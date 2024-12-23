@@ -75,8 +75,8 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Appointments'),
-        elevation: 8.0, // Shadow effect at the bottom of AppBar
-        shadowColor: Colors.black.withOpacity(0.3),
+        elevation: 6.0, // Shadow effect at the bottom of AppBar
+        shadowColor: Colors.grey.withOpacity(0.3),
         backgroundColor: Colors.white,// Adjust the shadow color and opacity
       ),
       body: Padding(
@@ -100,11 +100,12 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
                 final selectedSlot = appointment['selectedSlot'];
 
                 return Card(
-                  elevation: 8,
+                  elevation: 9,
+
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12), // Rounded corners
                   ),
-                    shadowColor: Colors.black54.withOpacity(0.2),
+                    shadowColor: Colors.black54.withOpacity(0.7),
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                   color: Colors.lightBlueAccent.shade100.withOpacity(0.7),
                   child: ListTile(
@@ -141,8 +142,8 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
 
                 return Card(
                   color: Colors.white,
-                  shadowColor: Colors.black54.withOpacity(0.2),
-                  elevation: 8,
+                  shadowColor: Colors.black54.withOpacity(0.7),
+                  elevation: 9,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12), // Rounded corners
                   ),
