@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '/providers/Location_provider.dart';  // Import LocationProvider
 import '/pages/LoginScreen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '/pages/SplashScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Loginscreen(),
+      home: Splashscreen(),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
@@ -58,7 +59,7 @@ class MyApp extends StatelessWidget {
               labelStyle: TextStyle(color: Colors.black),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: Colors.grey[200], // Grayish background for BottomNavigationBar
+          backgroundColor: Color(0xFFBBDEFB), // Grayish background for BottomNavigationBar
           selectedItemColor: Colors.blue, // Set selected item color
           unselectedItemColor: Colors.black,
 

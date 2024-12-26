@@ -68,7 +68,11 @@ class ReviewsPage extends StatelessWidget {
         title: const Text('Write a Review'),
         elevation: 4,
       ),
-      body: Padding(
+      body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFFE3F2FD),  Color(0xFFBBDEFB)])
+          ),
+          child:Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +107,7 @@ class ReviewsPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

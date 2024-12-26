@@ -89,179 +89,196 @@ class _SignupscreenState extends State<Signupscreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.withOpacity(0.5)),
-              ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFE3F2FD), // Light blue at the top
+              Color(0xFFBBDEFB), // Slightly darker blue at the bottom
+            ],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Sign Up',
-                      style: GoogleFonts.nunito(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your full name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
-                        } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
-                        } else if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _dobController,
-                      decoration: InputDecoration(
-                        labelText: 'Date of Birth',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.calendar_today),
-                          onPressed: () async {
-                            DateTime? pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                            );
-                            if (pickedDate != null) {
-                              setState(() {
-                                _dobController.text =
-                                "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      readOnly: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select your date of birth';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedGender,
-                      items: ['Male', 'Female', 'Other']
-                          .map((gender) => DropdownMenuItem(
-                        value: gender,
-                        child: Text(gender),
-                      ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedGender = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Gender',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select your gender';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    ElevatedButton(
-                      onPressed: _registerUser,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromRGBO(29, 54, 107, 1),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white, // Form container background color
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                  boxShadow: [BoxShadow(
+                    color: Colors.black.withOpacity(0.4), // Shadow color
+                    blurRadius: 10, // Blur radius
+                    offset: Offset(0, 5),
+                  )]
+                ),
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
                         'Sign Up',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const Loginscreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Already have an account? Sign In',
                         style: GoogleFonts.nunito(
-                          fontSize: 16,
-                          color: Colors.blue,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Full Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your full name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        obscureText: true,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password';
+                          } else if (value.length < 6) {
+                            return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _dobController,
+                        decoration: InputDecoration(
+                          labelText: 'Date of Birth',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.calendar_today),
+                            onPressed: () async {
+                              DateTime? pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (pickedDate != null) {
+                                setState(() {
+                                  _dobController.text =
+                                  "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        readOnly: true,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select your date of birth';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedGender,
+                        items: ['Male', 'Female', 'Other']
+                            .map((gender) => DropdownMenuItem(
+                          value: gender,
+                          child: Text(gender),
+                        ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedGender = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Gender',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select your gender';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: _registerUser,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromRGBO(29, 54, 107, 1),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign Up',
+                          style: TextStyle(color: Colors.white),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const Loginscreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Already have an account? Sign In',
+                          style: GoogleFonts.nunito(
+                            fontSize: 16,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

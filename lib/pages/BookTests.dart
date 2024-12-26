@@ -133,7 +133,11 @@ class _BooktestsState extends State<Booktests> {
         iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
       ),
-      body: Column(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Color(0xFFE3F2FD),  Color(0xFFBBDEFB)])
+        ),
+          child:Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(10.0),
@@ -142,8 +146,10 @@ class _BooktestsState extends State<Booktests> {
               decoration: InputDecoration(
                 labelText: 'Search for Diagnostic Centers',
                 prefixIcon: const Icon(Icons.search),
+                fillColor: Colors.white,
+                filled: true,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
               onSubmitted: (_) {
@@ -211,7 +217,7 @@ class _BooktestsState extends State<Booktests> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

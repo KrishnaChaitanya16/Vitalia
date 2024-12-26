@@ -89,7 +89,7 @@ class _LoginscreenState extends State<Loginscreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue[300]!, Colors.blue[600]!],
+            colors: [Color(0xFFE3F2FD),  Color(0xFFBBDEFB)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -97,8 +97,10 @@ class _LoginscreenState extends State<Loginscreen> {
         child: Center(
           child: SingleChildScrollView(
             child: ConstrainedBox(
+
               constraints: const BoxConstraints(maxWidth: 400),
               child: Card(
+                color: Colors.white,
                 elevation: 8,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

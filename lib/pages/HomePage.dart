@@ -18,6 +18,8 @@ import '/pages/ChatbotPage.dart';
 import '/pages/AllSpecialistsPage.dart';
 import 'dart:async';
 import '/pages/YourTests.dart';
+import '/pages/YourCartPage.dart';
+import '/pages/YourOrdersPage.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -360,6 +362,32 @@ class _HomepageState extends State<Homepage> {
 
                       },
                     ),
+                    SizedBox(height: screenHeight*0.02,),
+                    ListTile(
+                      leading: Image.asset('assets/icons/shopping-bag.png', height: screenHeight * 0.03),
+                      title: Text(
+                        "Your Cart",
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
+                      ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>CartPage()));
+
+                      },
+                    ),
+                    SizedBox(height: screenHeight*0.02,),
+                    ListTile(
+                      leading: Image.asset('assets/icons/package.png', height: screenHeight * 0.035),
+                      title: Text(
+                        "Your Orders",
+                        style: GoogleFonts.nunito(fontSize: screenHeight * 0.016),
+                      ),
+                      trailing:  Icon(Icons.arrow_forward_ios, size: screenHeight * 0.017, color: Colors.grey.shade700),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>YourOrdersPage()));
+
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -411,7 +439,18 @@ class _HomepageState extends State<Homepage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body:Container(
+        height: MediaQuery.of(context).size.height,
+        decoration: BoxDecoration(
+    gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+    Color(0xFFE3F2FD), // Light blue at the top
+    Color(0xFFBBDEFB), // Slightly darker blue at the bottom
+    ],)
+        ),
+          child:RefreshIndicator(
         color: Colors.lightBlue,
         onRefresh: _getUserDetails,
         child: SingleChildScrollView(
@@ -675,12 +714,13 @@ class _HomepageState extends State<Homepage> {
 
         ),
 
-      ),
+      )),
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onBottomNavTapped,
-        backgroundColor: Colors.grey[100],
+        backgroundColor: Colors.white70,
+        elevation: 7,
         selectedItemColor: const Color.fromRGBO(29, 54, 107, 1),
         unselectedItemColor: Colors.black54,
         type: BottomNavigationBarType.fixed,

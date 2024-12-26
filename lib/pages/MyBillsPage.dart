@@ -243,26 +243,53 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         itemCount: _bills.length, // Use the dynamic list of receipts
         itemBuilder: (context, index) {
           final bill = _bills[index];
-          return Card(
-            elevation: 3,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: ListTile(
-              leading: const Icon(Icons.receipt, color: Colors.blue),
-              title: Text(
-                bill['fileName']!,
-                style: GoogleFonts.nunito(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+          return Dismissible(
+            key: Key(bill['fileName'] ?? index.toString()), // Unique key for each item
+            direction: DismissDirection.endToStart, // Swipe left to delete
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20.0),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (direction) async {
+              final success = await _deleteFileFromCloud(bill['fileName']!);
 
-              onTap: () {
-                // Handle view receipt action
+              if (success) {
+                setState(() {
+                  _bills.removeAt(index); // Remove the bill from the list
+                });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text("Viewing bill: ${bill['fileName']}")),
+                  const SnackBar(content: Text("Bill deleted successfully")),
                 );
-              },
+                return true;
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Failed to delete bill")),
+                );
+                return false; // Prevent Dismissible from removing the widget
+              }
+            },
+            child: Card(
+              color: Colors.white,
+              elevation: 3,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: ListTile(
+                leading: const Icon(Icons.receipt, color: Colors.blue),
+                title: Text(
+                  bill['fileName']!,
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () {
+                  // Handle view receipt action
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Viewing bill: ${bill['fileName']}")),
+                  );
+                },
+              ),
             ),
           );
         },
@@ -270,6 +297,48 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     );
   }
 
+
+  Future<bool> _deleteFileFromCloud(String fileName) async {
+    final token = await _currentUser!.authentication;
+
+    if (token.accessToken == null || token.accessToken!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Authentication failed")),
+      );
+      return false;
+    }
+
+    // Construct the delete URL without the 'health_bills/' prefix twice
+    final deleteUrl =
+        'https://storage.googleapis.com/storage/v1/b/health_bills/o/${Uri.encodeComponent(fileName)}';
+
+    // Print the delete URL for debugging
+    print("Delete URL: $deleteUrl");
+
+    try {
+      final response = await http.delete(
+        Uri.parse(deleteUrl),
+        headers: {
+          'Authorization': 'Bearer ${token.accessToken}',
+        },
+      );
+
+      // Print the response details for debugging
+      print("Response Status: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      if (response.statusCode == 204) {
+        print("File deleted successfully");
+        return true;
+      } else {
+        print("Failed to delete file: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting file: $e");
+      return false;
+    }
+  }
 
 
   Future<void> _fetchUploadedReceipts() async {
@@ -292,6 +361,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         return;
       }
+      api3='https://storage.googleapis.com/storage/v1/b/health_bills/o';
 
 
 
@@ -356,6 +426,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         return;
       }
+      api4="https://storage.googleapis.com/storage/v1/b/health_bills1/o";
 
 
 
@@ -365,6 +436,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
           'Authorization': 'Bearer $accessToken', // Use the Google OAuth2 token
         },
       );
+
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -451,7 +523,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     }
 
     final apiUrl =
-        '${api3}?uploadType=media&name=$fileName';
+        'https://storage.googleapis.com/storage/v1/b/health_bills/o?uploadType=media&name=$fileName';
 
     try {
       // Make the upload request
@@ -470,7 +542,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         _fetchUploadedReceipts(); // Refresh the list of uploaded files
       } else {
-        print("Failed to upload file: ${response.statusCode}");
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to upload PDF")),
         );
@@ -484,7 +556,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
   }
   Future<void> _uploadPdfToGoogleCloudStorage() async {
     if (_currentUser == null) {
-      // Prompt user to sign in if not already signed in
       await _signInWithGoogle();
       if (_currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -494,7 +565,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       }
     }
 
-    // Pick a PDF file using File Picker
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -508,20 +578,9 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     }
 
     var file = result.files.single;
-    if (file.path == null && file.bytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid file, upload failed")),
-      );
-      return;
-    }
-
-    // Read file bytes
     var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
-
-    // Generate a unique file name
     String fileName = '${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-    // Get access token
     final token = await _currentUser!.authentication;
     if (token.accessToken == null || token.accessToken!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -531,10 +590,9 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     }
 
     final apiUrl =
-        '${api4}?uploadType=media&name=$fileName';
+        'https://storage.googleapis.com/upload/storage/v1/b/health_bills1/o?uploadType=media&name=$fileName';
 
     try {
-      // Make the upload request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
@@ -544,24 +602,27 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         body: fileBytes,
       );
 
+
+
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("PDF uploaded successfully")),
         );
         _fetchUploadedBills(); // Refresh the list of uploaded files
       } else {
-        print("Failed to upload file: ${response.statusCode}");
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to upload PDF")),
         );
       }
     } catch (e) {
-      print("Error uploading PDF: $e");
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error uploading PDF")),
       );
     }
   }
+
 
 
 }

@@ -79,7 +79,11 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
         shadowColor: Colors.grey.withOpacity(0.3),
         backgroundColor: Colors.white,// Adjust the shadow color and opacity
       ),
-      body: Padding(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Color(0xFFE3F2FD),  Color(0xFFBBDEFB)])
+        ),
+          child:Padding(
 
         padding: const EdgeInsets.all(16.0),
         child: ListView(
@@ -197,7 +201,7 @@ class _BookappointmentpageState extends State<Bookappointmentpage> {
               ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

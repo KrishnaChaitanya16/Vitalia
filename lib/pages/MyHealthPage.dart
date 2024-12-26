@@ -10,6 +10,9 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MyHealthPage extends StatefulWidget {
   const MyHealthPage({super.key});
@@ -81,7 +84,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         'baseUrl': 'default_api_key', // Set a default API key (optional)
       });
       final fetchStatus = await remoteConfig.fetchAndActivate();
-      print("Fetch status: $fetchStatus");
+
       baseUrl = remoteConfig.getString('baseurl');
 
       if (baseUrl == null || baseUrl!.isEmpty) {
@@ -92,7 +95,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       _fetchPatientRecords();
     } catch (e) {
 
-      print("Failed to fetch API key from Remote Config.");
+
     }
 
 
@@ -106,7 +109,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         'api': 'default_api_key', // Set a default API key (optional)
       });
       final fetchStatus = await remoteConfig.fetchAndActivate();
-      print("Fetch status: $fetchStatus");
+
       api1 = remoteConfig.getString('apiurl1');
 
       if (api1 == null || api1!.isEmpty) {
@@ -117,7 +120,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       _fetchPatientRecords();
     } catch (e) {
 
-      print("Failed to fetch API key from Remote Config.");
+
     }
     try {
       FirebaseRemoteConfig.instance.setConfigSettings(RemoteConfigSettings(
@@ -140,7 +143,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       _fetchPatientRecords();
     } catch (e) {
 
-      print("Failed to fetch API key from Remote Config.");
+
     }
   }
 
@@ -157,11 +160,13 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
     }
 
     final token = await _currentUser!.authentication;
+    print(token);
 
     if (token.accessToken == null) {
-      print('Access token is null');
+
       return;
     }
+    print(token.accessToken);
 
     final authClient = authenticatedClient(
       http.Client(),
@@ -171,6 +176,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         _googleSignIn.scopes,
       ),
     );
+
 
 
 
@@ -240,27 +246,22 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
           ];
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Current user's medications fetched successfully")),
-        );
+
       } else {
         throw Exception("Failed to fetch medication requests for the current user");
       }
     } catch (e) {
-      print("Error fetching patient records: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error fetching patient records")),
-      );
+
+
     }
   }
 
   Future<void> _fetchUploadedFiles() async {
     try {
+      // Google Sign-In to get the authentication token
       GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Google Sign-In failed")),
-        );
+
         return;
       }
 
@@ -268,24 +269,26 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       String accessToken = googleAuth.accessToken ?? '';
 
       if (accessToken.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to obtain access token")),
-        );
+
         return;
       }
 
+      // Correct API URL for fetching files from the bucket
+      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_care_bucket_10/o';
 
-
+      // Send GET request to list the objects in the bucket
       final response = await http.get(
-        Uri.parse(api1),
+        Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer $accessToken',
         },
       );
 
+
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         List<dynamic> items = jsonResponse['items'] ?? [];
+
         if (items.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("No files found in the bucket")),
@@ -297,23 +300,21 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
           return {
             'fileName': item['name'] as String,
             'uploadDate': item['timeCreated'] as String,
+            'mediaLink': item['mediaLink'] as String,
+            'cloudPath': item['name'] as String,
           };
         }).toList();
 
         setState(() {
-          _uploadedFiles = fileRecords;
+          _uploadedFiles = fileRecords; // Update your state with fetched files
         });
       } else {
-        print("Failed to fetch files: ${response.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to fetch files")),
-        );
+
+
       }
     } catch (e) {
-      print("Error fetching files: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error fetching files")),
-      );
+
+
     }
   }
 
@@ -331,9 +332,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       String accessToken = googleAuth.accessToken ?? '';
 
       if (accessToken.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to obtain access token")),
-        );
+
         return;
       }
 
@@ -360,6 +359,9 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
           return {
             'fileName': item['name'] as String,
             'uploadDate': item['timeCreated'] as String,
+            'mediaLink': item['mediaLink'] as String,
+            'cloudPath': item['name'] as String,
+
           };
         }).toList();
 
@@ -367,16 +369,11 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
           _uploadedFilesP = fileRecords;
         });
       } else {
-        print("Failed to fetch files: ${response.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to fetch files")),
-        );
+
+
       }
     } catch (e) {
-      print("Error fetching files: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error fetching files")),
-      );
+
     }
   }
 
@@ -411,13 +408,19 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
     final token = await _currentUser!.authentication;
     final apiUrl =
-        '${api1}?uploadType=media&name=$fileName';
+        'https://storage.googleapis.com/upload/storage/v1/b/health_care_bucket_10/o?uploadType=media&name=$fileName';
 
     try {
       var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
+      if (fileBytes.isEmpty) {
+
+        return;
+      }
+
+
 
       final response = await http.post(
-        Uri.parse(api2),
+        Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer ${token.accessToken}',
           'Content-Type': 'application/pdf',
@@ -431,16 +434,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         );
         _fetchUploadedFiles();
       } else {
-        print("Failed to upload file: ${response.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload PDF")),
-        );
+
       }
     } catch (e) {
-      print("Error uploading PDF: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error uploading PDF")),
-      );
+
     }
   }
 
@@ -495,16 +492,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         );
         _fetchUploadedFilesP();
       } else {
-        print("Failed to upload file: ${response.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload PDF")),
-        );
+
       }
     } catch (e) {
-      print("Error uploading PDF: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error uploading PDF")),
-      );
+
     }
   }
 
@@ -531,7 +522,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
   Widget _buildPageContent(String type) {
     List<Map<String, dynamic>> records = [];
 
-    switch(type.toLowerCase()) {
+    switch (type.toLowerCase()) {
       case "medication":
         records = _uploadedRecords;
         break;
@@ -539,12 +530,14 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         records = _uploadedFiles.map((file) => {
           'fileName': file['fileName'],
           'uploadDate': file['uploadDate'],
+          'mediaLink': file['mediaLink'], // Include media link here
         }).toList();
         break;
       case "prescription":
         records = _uploadedFilesP.map((file) => {
           'fileName': file['fileName'],
           'uploadDate': file['uploadDate'],
+          'mediaLink': file['mediaLink'], // Include media link here
         }).toList();
         break;
     }
@@ -561,7 +554,12 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 16),
+
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent
+              ),
+
               onPressed: () {
                 if (type.toLowerCase() == "medication") {
                   _navigateToAddMedicationPage();
@@ -571,7 +569,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
                   _uploadPdfToGoogleCloudStorageP();
                 }
               },
-              child: Text("Add ${type}"),
+              child: Text("Add ${type}",style: TextStyle(color:Colors.white)),
             ),
           ],
         ),
@@ -580,44 +578,160 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         itemCount: records.length,
         itemBuilder: (context, index) {
           final record = records[index];
-          return Card(
-            elevation: 2,
-            color: Colors.grey[100],
+          return Dismissible(
+            key: Key(record['fileName'] ?? ''),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Icon(Icons.delete, color: Colors.white),
+            ),
+            onDismissed: (direction) async {
+              String? cloudPath = record['cloudPath'];
 
-            margin: EdgeInsets.symmetric(vertical: 8),
-            child: ListTile(
-              leading: Icon(
-                type.toLowerCase() == "medication"
-                    ? Icons.medication
-                    : _getFileIcon(record['fileName'] ?? ''),
-                color: Colors.blue,
-                size: 40,
+              // Remove the record from the list immediately before performing the async operation
+              setState(() {
+                records.removeAt(index);  // Remove the file from the UI
+              });
 
-              ),
-              title: Text(
-                type.toLowerCase() == "medication"
-                    ? record['name'] ?? 'Unknown'
-                    : record['fileName'] ?? 'Unknown File',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (type.toLowerCase() == "medication") ...[
+              if (cloudPath != null) {
+                bool success = await _deleteFileFromCloud(cloudPath);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("File deleted successfully")),
+                  );
+                } else {
+                  // If the delete operation fails, re-add the item back to the list
+                  setState(() {
+                    records.insert(index, record);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to delete file")),
+                  );
+                }
+              }
+            },
 
-                    if (record['medications'] != null)
-                      ...(record['medications'] as List).map((med) =>
-                          Text("${med['medicationName']} - ${med['dosage']}")
-                      ),
-                  ] else
-                    Text("Uploaded: ${record['uploadDate']}"),
-                ],
+
+            child: Card(
+              elevation: 2,
+              color: Colors.grey[100],
+              margin: EdgeInsets.symmetric(vertical: 8),
+              child: ListTile(
+                onTap: () {
+                  _previewFile(record);
+                },
+                leading: Icon(
+                  type.toLowerCase() == "medication"
+                      ? Icons.medication
+                      : _getFileIcon(record['fileName'] ?? ''),
+                  color: Colors.blue,
+                  size: 40,
+                ),
+                title: Text(
+                  type.toLowerCase() == "medication"
+                      ? record['name'] ?? 'Unknown'
+                      : record['fileName'] ?? 'Unknown File',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (type.toLowerCase() == "medication") ...[
+                      if (record['medications'] != null)
+                        ...(record['medications'] as List).map((med) =>
+                            Text("${med['medicationName']} - ${med['dosage']}")),
+                    ] else
+                      Text("Uploaded: ${record['uploadDate']}"),
+                  ],
+                ),
+                isThreeLine: type.toLowerCase() == "medication",
               ),
-              isThreeLine: type.toLowerCase() == "medication",
             ),
           );
         },
       ),
+    );
+  }
+
+
+  Future<void> _previewFile(Map<String, dynamic> record) async {
+    String? mediaLink = record['mediaLink'];
+    if (mediaLink != null && mediaLink.isNotEmpty) {
+      try {
+        final Uri url = Uri.parse(mediaLink);
+        if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Could not open the file")),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error opening the file: $e")),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("No media link available")),
+      );
+    }
+  }
+  Future<bool> _deleteFileFromCloud(String fileName) async {
+    final token = await _currentUser!.authentication;
+
+    if (token.accessToken == null || token.accessToken!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Authentication failed")),
+      );
+      return false;
+    }
+
+    // URL-encode the file name
+    final encodedFileName = Uri.encodeComponent(fileName);
+    final deleteUrl =
+        'https://storage.googleapis.com/storage/v1/b/health_care_bucket_10/o/$encodedFileName';
+
+    try {
+      final response = await http.delete(
+        Uri.parse(deleteUrl),
+        headers: {
+          'Authorization': 'Bearer ${token.accessToken}',
+        },
+      );
+
+      if (response.statusCode == 204) {
+        print("File deleted successfully");
+        return true;
+      } else {
+        print("Failed to delete file: ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting file: $e");
+      return false;
+    }
+  }
+
+
+  void _showFilePreviewDialog(String fileName, String fileUrl) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Preview: $fileName"),
+          content: fileUrl.isNotEmpty
+              ? Image.network(fileUrl) // Show image preview for non-PDF files
+              : const Text("No preview available."),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
     );
   }
 

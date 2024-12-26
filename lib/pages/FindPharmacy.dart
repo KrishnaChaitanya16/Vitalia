@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
-
+import '/pages/PharmacyDetailsPage.dart';
 class Findpharmacy extends StatefulWidget {
   const Findpharmacy({super.key});
 
@@ -144,7 +144,11 @@ class _FindpharmacyState extends State<Findpharmacy> {
         iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
       ),
-      body: Column(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Color(0xFFE3F2FD),  Color(0xFFBBDEFB)])
+        ),
+          child:Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(10.0),
@@ -153,8 +157,10 @@ class _FindpharmacyState extends State<Findpharmacy> {
               decoration: InputDecoration(
                 labelText: 'Search for Pharmacies',
                 prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
               onSubmitted: (_) {
@@ -204,25 +210,7 @@ class _FindpharmacyState extends State<Findpharmacy> {
                       ),
                       onTap: () {
                         // Open result link in Google Maps or browser
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Open Link'),
-                            content: Text('Open ${result['place_id']}?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  // Handle opening the place in Google Maps
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('Open'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-                            ],
-                          ),
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>PharmacyDetailsPage(pharmacyName: result['name'] ?? 'No title available',pharmacyAddress: result['vicinity'] ?? 'No address available'))
                         );
                       },
                     ),
@@ -232,7 +220,7 @@ class _FindpharmacyState extends State<Findpharmacy> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

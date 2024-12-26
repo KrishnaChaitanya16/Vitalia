@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Testspage extends StatelessWidget {
   final Map<String, dynamic> diagnosticCenter;
 
+
   const Testspage({super.key, required this.diagnosticCenter});
 
+  // Method to fetch available tests from Firestore or use default tests if not available
   Future<List<String>> _fetchTests(BuildContext context) async {
     final String centerId = diagnosticCenter['id'] ?? 'default_id';
     final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -20,6 +22,7 @@ class Testspage extends StatelessWidget {
       if (!centerSnapshot.exists) {
         List<String> defaultTests = ['Blood Test', 'X-Ray', 'MRI Scan', 'CT Scan', 'ECG'];
 
+        // Create the diagnostic center with default tests if not present
         await centerDocRef.set({
           'name': diagnosticCenter['name'] ?? 'Unnamed Center',
           'location': diagnosticCenter['vicinity'] ?? 'Unknown Location',
@@ -55,75 +58,80 @@ class Testspage extends StatelessWidget {
         shadowColor: Colors.grey.withOpacity(0.5),
       ),
       backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Available Tests:',
-              style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: FutureBuilder<List<String>>(
-                future: _fetchTests(context),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Error fetching tests. Please try again later.',
-                        style: GoogleFonts.nunito(fontSize: 16, color: Colors.red),
-                      ),
-                    );
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No tests available at this center.',
-                        style: GoogleFonts.nunito(fontSize: 16, color: Colors.black54),
-                      ),
-                    );
-                  }
-
-                  final tests = snapshot.data!;
-                  return ListView.builder(
-                    itemCount: tests.length,
-                    itemBuilder: (context, index) {
-                      final testName = tests[index];
-                      return ListTile(
-                        title: Text(
-                          testName,
-                          style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                        trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BookSlotPage(testName: testName),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Book Test',
-                            style: TextStyle(color: Colors.white),
-                          ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)]),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Available Tests:',
+                style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: FutureBuilder<List<String>>(
+                  future: _fetchTests(context),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error fetching tests. Please try again later.',
+                          style: GoogleFonts.nunito(fontSize: 16, color: Colors.red),
                         ),
                       );
-                    },
-                  );
-                },
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No tests available at this center.',
+                          style: GoogleFonts.nunito(fontSize: 16, color: Colors.black54),
+                        ),
+                      );
+                    }
+
+                    final tests = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: tests.length,
+                      itemBuilder: (context, index) {
+                        final testName = tests[index];
+                        return ListTile(
+                          title: Text(
+                            testName,
+                            style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          trailing: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => BookSlotPage(testName: testName,diagnosticCenter:diagnosticCenter,),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Book Test',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -132,8 +140,10 @@ class Testspage extends StatelessWidget {
 
 class BookSlotPage extends StatefulWidget {
   final String testName;
+  final Map<String, dynamic> diagnosticCenter;
 
-  const BookSlotPage({super.key, required this.testName});
+
+  const BookSlotPage({super.key, required this.testName,required this.diagnosticCenter});
 
   @override
   State<BookSlotPage> createState() => _BookSlotPageState();
@@ -149,12 +159,40 @@ class _BookSlotPageState extends State<BookSlotPage> {
   // Method to update booking in Firestore
   Future<void> _updateBookingInFirestore() async {
     try {
+      // Retrieve the current user's ID from Firebase Auth
+      final user = FirebaseAuth.instance.currentUser;
+      final userId = user?.uid;
+
+      if (userId == null) {
+        throw 'User not logged in';
+      }
+
+      // Retrieve user details from the Firestore 'users' collection
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+
+      // Fetch the full name, or default to 'Anonymous' if not available
+      final userName = userDoc.exists && userDoc.data() != null
+          ? userDoc.data()!['fullName'] ?? 'Anonymous'
+          : 'Anonymous';
+
+      // Retrieve diagnostic center details
+      final diagnosticCenterName = widget.diagnosticCenter['name'] ?? 'Unnamed Center';
+      final diagnosticCenterLocation = widget.diagnosticCenter['vicinity'] ?? 'Unknown Location';
+
+      // Add the booking data to Firestore
       await _firestore.collection('bookings').add({
         'testName': widget.testName,
         'date': _selectedDay?.toIso8601String().split('T').first ?? '',
         'time': _selectedTime?.format(context) ?? '',
         'createdAt': FieldValue.serverTimestamp(),
+        'userName': userName,  // Add the user's full name
+        'diagnosticCenter': diagnosticCenterName,  // Add the diagnostic center name
+        'diagnosticCenterLocation': diagnosticCenterLocation,  // Add the diagnostic center location
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Booking confirmed!")),
+      );
     } catch (e) {
       debugPrint('Error updating Firestore: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -299,6 +337,8 @@ class _BookSlotPageState extends State<BookSlotPage> {
   }
 }
 
+
+
 class SuccessPage extends StatelessWidget {
   final String testName;
   final DateTime selectedDate;
@@ -316,35 +356,58 @@ class SuccessPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 80),
-            const SizedBox(height: 20),
-            const Text(
-              "Booking Successful!",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Test: $testName\n"
-                  "Date: ${selectedDate.toLocal().toString().split(' ')[0]}\n"
-                  "Time: ${selectedTime.format(context)}",
-              style: const TextStyle(fontSize: 18, color: Colors.black54),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                minimumSize: const Size(200, 50),
+        child: Center(  // Center the content horizontally and vertically
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Icon
+              const Icon(Icons.check_circle, color: Colors.green, size: 80),
+              const SizedBox(height: 20),
+
+              // Title Text
+              const Text(
+                "Booking Successful!",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
-              child: const Text("Go Back to Home"),
-            ),
-          ],
+              const SizedBox(height: 10),
+
+              // Booking Details Text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Text(
+                  "Test: $testName\n"
+                      "Date: ${selectedDate.toLocal().toString().split(' ')[0]}\n"
+                      "Time: ${selectedTime.format(context)}",
+                  style: const TextStyle(fontSize: 18, color: Colors.black54),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Go Back Button
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  minimumSize: const Size(200, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  "Go Back to Home",
+                  style: TextStyle(fontSize: 16,color: Colors.white),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

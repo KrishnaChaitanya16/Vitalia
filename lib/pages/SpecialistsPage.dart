@@ -312,28 +312,43 @@ class _SpecialistspageState extends State<Specialistspage> {
           ? Center(child: CircularProgressIndicator())
           : SlidingUpPanel(
         controller: panelController,
-        panel: Column(
-          children: [
-            GestureDetector(
-              onTap: () {
-                if (panelController.isPanelOpen) {
-                  panelController.close();
-                } else {
-                  panelController.open();
-                }
-              },
-              child: Container(
-                width: 50,
-                height: 8,
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(4),
+        panelBuilder: (scrollController) => Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFE3F2FD), // Light blue
+                Color(0xFFBBDEFB), // Slightly darker blue
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+          ),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  if (panelController.isPanelOpen) {
+                    panelController.close();
+                  } else {
+                    panelController.open();
+                  }
+                },
+                child: Container(
+                  width: 50,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ),
-            ),
-            Expanded(child: _buildSpecialistList()),
-          ],
+              Expanded(
+                child: _buildSpecialistList(),
+              ),
+            ],
+          ),
         ),
         body: GoogleMap(
           initialCameraPosition: CameraPosition(
@@ -351,6 +366,7 @@ class _SpecialistspageState extends State<Specialistspage> {
         maxHeight: MediaQuery.of(context).size.height * 0.6,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
       ),
+
     );
   }
 }

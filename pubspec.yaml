@@ -56,6 +56,9 @@ dependencies:
   intl:
   flutter_dotenv:
   firebase_remote_config:
+  timelines_plus: ^1.0.3
+  flutter_pdfview:
+  url_launcher: ^6.0.20
 
 
 dev_dependencies:
