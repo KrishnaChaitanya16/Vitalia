@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '/pages/HomePage.dart';
 
 class Testspage extends StatelessWidget {
   final Map<String, dynamic> diagnosticCenter;
@@ -392,7 +393,7 @@ class SuccessPage extends StatelessWidget {
               // Go Back Button
               ElevatedButton(
                 onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.push(context, MaterialPageRoute(builder: (context)=>Homepage()));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,

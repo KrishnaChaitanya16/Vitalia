@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/pages/HomePage.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -288,7 +289,7 @@ class SuccessPage extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // Navigate back to the home page
-                Navigator.popUntil(context, (route) => route.isFirst);
+                Navigator.push(context, MaterialPageRoute(builder: (context)=>Homepage()));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
