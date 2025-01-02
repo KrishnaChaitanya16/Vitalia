@@ -9,6 +9,8 @@ import '/pages/api_service.dart';
 import '/providers/Location_provider.dart';
 import '/pages/ResultsDisplayPage.dart';
 import 'dart:math';
+import 'package:flutter/services.dart' show rootBundle;
+
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
@@ -33,7 +35,7 @@ class _SpecialistspageState extends State<Specialistspage> {
   final PanelController panelController = PanelController();
   String googleApiKey = ""; // Replace with your actual API key
 
-  late String _mapStyle;
+  String _mapStyle ="";
 
   @override
   void initState() {
@@ -41,6 +43,9 @@ class _SpecialistspageState extends State<Specialistspage> {
     _loadMapStyle();
     _fetchLocationAndSpecialists();
     _fetchGoogleApiKey();
+    rootBundle.loadString('assets/map_style.txt').then((string){
+      _mapStyle=string;
+    });
   }
   Future<void> _fetchGoogleApiKey() async {
     await Firebase.initializeApp(); // Ensure Firebase is initialized
@@ -302,6 +307,9 @@ class _SpecialistspageState extends State<Specialistspage> {
     );
   }
 
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -351,9 +359,11 @@ class _SpecialistspageState extends State<Specialistspage> {
           ),
         ),
         body: GoogleMap(
+
           initialCameraPosition: CameraPosition(
             target: LatLng(userLat, userLng),
             zoom: 12.0,
+
           ),
           markers: markers,
           polylines: polylines,
