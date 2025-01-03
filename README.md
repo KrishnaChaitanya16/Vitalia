@@ -115,6 +115,34 @@ To run your Flutter app on an emulator, you'll need to set up an Android Virtual
 Watch the demo video of the **Vitalia** app on YouTube:  
 [Vitalia Demo Video](https://youtu.be/JjiYOb3D-3A)
 
+## **APK Download**
+
+If you want to install the app directly on your Android device, you can download the APK from the following link:
+
+- [Download Vitalia APK](https://storage.googleapis.com/vitalia1/app-release.apk)
+
+Follow the **Installation Instructions** to install the APK.
+
+---
+
+## **Installation Instructions**
+
+To install the app on your Android device:
+
+### **Enable Installation from Unknown Sources**:
+1. Open your device's **Settings**.
+2. Go to **Security** or **Privacy** and enable **Install from Unknown Sources**.
+
+### **Download the APK**:
+1. Click the link above to download the APK file.
+
+### **Install the APK**:
+1. Open the **Downloads** folder and tap the `vitalia-app-release.apk` file.
+2. Follow the on-screen instructions to install the app.
+
+### **Launch the App**:
+1. Once the installation is complete, you can find the app in your device's app drawer.
+
 
 
 
