@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AppointmentDetailsPage extends StatelessWidget {
   final Map<String, dynamic> appointment;
@@ -8,12 +9,34 @@ class AppointmentDetailsPage extends StatelessWidget {
   const AppointmentDetailsPage({super.key, required this.appointment});
 
   // Function to handle cancellation
-  Future<void> _cancelAppointment(BuildContext context) async {
+  Future<void> _cancelAppointment(BuildContext context, String doctorName) async {
     try {
-      await FirebaseFirestore.instance
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not authenticated. Please log in again.')),
+        );
+        return;
+      }
+
+      // Query for the document with the current user and specific doctorName
+      final querySnapshot = await FirebaseFirestore.instance
           .collection('appointments')
-          .doc(appointment['appointmentId'])
-          .delete();
+          .where('doctorName', isEqualTo: doctorName)
+          .where('userId', isEqualTo: user.email) // Assuming userId is email
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No matching appointment found.')),
+        );
+        return;
+      }
+
+      // Loop through all matching documents and delete them
+      for (final doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Appointment cancelled successfully!')),
@@ -24,8 +47,10 @@ class AppointmentDetailsPage extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to cancel appointment. Please try again.')),
       );
+      print('Error canceling appointment: $e');
     }
   }
+
 
   // Function to navigate to reschedule page
   void _rescheduleAppointment(BuildContext context) {
@@ -107,7 +132,7 @@ class AppointmentDetailsPage extends StatelessWidget {
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
                   ),
-                  onPressed: () => _cancelAppointment(context),
+                  onPressed: () => _cancelAppointment(context,appointment['doctorName']),
                   child: const Text(
                     'Cancel Appointment',
                     style: TextStyle(

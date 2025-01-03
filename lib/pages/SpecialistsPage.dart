@@ -369,7 +369,7 @@ class _SpecialistspageState extends State<Specialistspage> {
           polylines: polylines,
           onMapCreated: (controller) {
             mapController = controller;
-            mapController.setMapStyle(_mapStyle); // Apply the map style here
+            // Apply the map style here
           },
         ),
         minHeight: 300.0,

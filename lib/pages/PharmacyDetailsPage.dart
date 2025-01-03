@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import '/pages/YourCartPage.dart';
 class PharmacyDetailsPage extends StatefulWidget {
   final String pharmacyName;
   final String pharmacyAddress;
@@ -215,6 +215,27 @@ class _PharmacyDetailsPageState extends State<PharmacyDetailsPage> {
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
+        actions: [
+          IconButton(
+
+            icon: Container(
+              margin: EdgeInsets.only(right: 35),
+                child:Image.asset(
+      'assets/icons/shopping-bag.png', // Path to your custom icon
+        width: 24, // Adjust the size as needed
+        height: 24,
+
+      )),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CartPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(

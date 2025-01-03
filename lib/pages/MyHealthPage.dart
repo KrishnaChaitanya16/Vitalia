@@ -530,14 +530,14 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         records = _uploadedFiles.map((file) => {
           'fileName': file['fileName'],
           'uploadDate': file['uploadDate'],
-          'mediaLink': file['mediaLink'], // Include media link here
+          'mediaLink': file['mediaLink'],
         }).toList();
         break;
       case "prescription":
         records = _uploadedFilesP.map((file) => {
           'fileName': file['fileName'],
           'uploadDate': file['uploadDate'],
-          'mediaLink': file['mediaLink'], // Include media link here
+          'mediaLink': file['mediaLink'],
         }).toList();
         break;
     }
@@ -554,12 +554,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 16),
-
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent
+                  backgroundColor: Colors.blueAccent
               ),
-
               onPressed: () {
                 if (type.toLowerCase() == "medication") {
                   _navigateToAddMedicationPage();
@@ -569,7 +567,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
                   _uploadPdfToGoogleCloudStorageP();
                 }
               },
-              child: Text("Add ${type}",style: TextStyle(color:Colors.white)),
+              child: Text("Add ${type}", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -588,69 +586,257 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
               child: Icon(Icons.delete, color: Colors.white),
             ),
             onDismissed: (direction) async {
-              String? cloudPath = record['cloudPath'];
+              if (type.toLowerCase() == "medication") {
+                // Assuming the medication has a unique identifier, such as 'id'.
+                print(record.toString());
 
-              // Remove the record from the list immediately before performing the async operation
-              setState(() {
-                records.removeAt(index);  // Remove the file from the UI
-              });
+                final medications = record['medications'] as List?;
+                if (medications != null && medications.isNotEmpty) {
+                  final medication = medications[0]; // Assuming you want the first medication
+                  final medicationName = medication['medicationName'];  // Get the medication name
 
-              if (cloudPath != null) {
-                bool success = await _deleteFileFromCloud(cloudPath);
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("File deleted successfully")),
-                  );
-                } else {
-                  // If the delete operation fails, re-add the item back to the list
+                  if (medicationName == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Medication details are missing")),
+                    );
+                    return;
+                  }
+
+                  // If you don't have a medicationId, use medicationName as identifier
+                  print("Deleting medication: $medicationName");
+
+                  // Perform deletion (use medicationName as the ID or unique identifier)
                   setState(() {
-                    records.insert(index, record);
+                    records.removeAt(index);
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to delete file")),
-                  );
+
+                  bool success = await _deleteMedication(medicationName);  // Using medicationName for deletion
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Medication deleted successfully")),
+                    );
+                  } else {
+                    setState(() {
+                      records.insert(index, record);  // Reinsert the record if deletion fails
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Failed to delete medication")),
+                    );
+                  }
+                }
+              } else {
+                // If it's not a medication, proceed to delete the file
+                String? cloudPath = record['cloudPath'];
+                setState(() {
+                  records.removeAt(index); // Remove the record from the list
+                });
+
+                if (cloudPath != null) {
+                  bool success = await _deleteFileFromCloud(cloudPath);
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("File deleted successfully")),
+                    );
+                  } else {
+                    setState(() {
+                      records.insert(index, record); // Reinsert the record if deletion fails
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Failed to delete file")),
+                    );
+                  }
                 }
               }
             },
-
-
-            child: Card(
-              elevation: 2,
-              color: Colors.grey[100],
-              margin: EdgeInsets.symmetric(vertical: 8),
-              child: ListTile(
-                onTap: () {
-                  _previewFile(record);
-                },
-                leading: Icon(
-                  type.toLowerCase() == "medication"
-                      ? Icons.medication
-                      : _getFileIcon(record['fileName'] ?? ''),
-                  color: Colors.blue,
-                  size: 40,
-                ),
-                title: Text(
-                  type.toLowerCase() == "medication"
-                      ? record['name'] ?? 'Unknown'
-                      : record['fileName'] ?? 'Unknown File',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (type.toLowerCase() == "medication") ...[
+            child: GestureDetector(
+              onTap: () => _previewFile(record),
+              child: type.toLowerCase() == "medication"
+                  ? Card(
+                color:Color.fromRGBO(215, 236, 252, 1),
+                elevation: 2,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.medication, color: Colors.blue, size: 24),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              record['name'] ?? 'Unknown',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Ongoing',
+                              style: TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
                       if (record['medications'] != null)
-                        ...(record['medications'] as List).map((med) =>
-                            Text("${med['medicationName']} - ${med['dosage']}")),
-                    ] else
-                      Text("Uploaded: ${record['uploadDate']}"),
-                  ],
+                        ...(record['medications'] as List).map((med) {
+                          // Debug print
+
+                          return Column(
+
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Divider(height: 24),
+                              Row(
+
+                                children: [
+                                  Expanded(
+
+                                    child: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '${med['medicationName']} ',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.blue[700],
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: med['details'] ?? '',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  _buildTimingIndicator(
+                                    med['dosage']
+                                        .contains('Morning'),
+                                    Icons.wb_sunny,
+                                    med['dosage'] ?? '10ml',
+                                  ),
+                                  _buildTimingIndicator(
+                                    med['dosage']
+                                        .contains('Afternoon'),
+                                    Icons.wb_sunny,
+                                    med['dosage'] ?? '10ml',
+                                  ),
+                                  _buildTimingIndicator(
+                                    med['dosage']
+                                        .contains('Evening'),
+                                    Icons.wb_twilight,
+                                    med['dosage'] ?? '10ml',
+                                  ),
+                                  _buildTimingIndicator(
+                                    med['dosage']
+                                        .contains('Night'),
+                                    Icons.nightlight_round,
+                                    med['dosage'] ?? '10ml',
+                                  ),
+                                  Spacer(),
+                                  Text(
+                                    med['dosage']?.contains('After Food') ?? false
+                                        ? 'After Food'
+                                        : 'Before Food',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              // Dosage Information
+                              Text(
+                                'Dosage: ${med['dosage'] ?? '10ml'}, ${med['frequency'] ?? 'four times a day'}, ${med['duration'] ?? 'for 5 days'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                    ],
+                  ),
                 ),
-                isThreeLine: type.toLowerCase() == "medication",
+              )
+
+                  : Card(
+                elevation: 2,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(
+                    _getFileIcon(record['fileName'] ?? ''),
+                    color: Colors.blue,
+                    size: 40,
+                  ),
+                  title: Text(
+                    record['fileName'] ?? 'Unknown File',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text("Uploaded: ${record['uploadDate']}"),
+                ),
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTimeChip(IconData icon, String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Chip(
+        avatar: CircleAvatar(
+          backgroundColor: color.withOpacity(0.8),
+          child: Icon(
+            icon,
+            size: 18, // Increased size for better visibility
+            color: Colors.white, // Ensure the icon contrasts with the background
+          ),
+        ),
+        label: Text(
+          label,
+          style: TextStyle(color: Colors.black, fontSize: 14), // Clearer text
+        ),
+        backgroundColor: color.withOpacity(0.2), // Softer background color
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+      ),
+    );
+  }
+  Widget _buildTimingIndicator(bool? isActive, IconData icon, String dose) {
+    return Container(
+      margin: EdgeInsets.only(right: 16),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: isActive == true ? Colors.orange : Colors.grey,
+            size: 26,
+          ),
+          SizedBox(height: 4),
+
+        ],
       ),
     );
   }
@@ -677,6 +863,83 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       );
     }
   }
+  Future<bool> _deleteMedication(String medicationName) async {
+    final token = await _currentUser!.authentication;
+
+    if (token.accessToken == null || token.accessToken!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Authentication failed")),
+      );
+      return false;
+    }
+
+    // Step 1: Search for the medication in the FHIR store using medicationName
+    final searchUrl =
+        'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest?medication=$medicationName';
+
+    try {
+      final searchResponse = await http.get(
+        Uri.parse(searchUrl),
+        headers: {
+          'Authorization': 'Bearer ${token.accessToken}',
+          'Content-Type': 'application/fhir+json',
+        },
+      );
+
+      if (searchResponse.statusCode == 200) {
+        final searchBody = json.decode(searchResponse.body);
+
+        // Check if the medication exists and extract its ID
+        final medicationId = searchBody['entry']?[0]?['resource']?['id'];
+
+        if (medicationId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Medication ID not found")),
+          );
+          return false;
+        }
+
+        // Step 2: Construct the delete URL for the medication by its ID
+        final deleteUrl =
+            'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest/$medicationId';
+
+        // Send DELETE request to remove the medication
+        final deleteResponse = await http.delete(
+          Uri.parse(deleteUrl),
+          headers: {
+            'Authorization': 'Bearer ${token.accessToken}',
+            'Content-Type': 'application/fhir+json',
+          },
+        );
+
+        // Check the response status code
+        if (deleteResponse.statusCode == 204) {
+          print("Medication deleted successfully");
+          return true;
+        } else {
+          print("Failed to delete medication: ${deleteResponse.statusCode}");
+          print("Response Body: ${deleteResponse.body}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Failed to delete medication")),
+          );
+          return false;
+        }
+      } else {
+        print("Failed to find medication: ${searchResponse.statusCode}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Medication search failed")),
+        );
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting medication: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred while deleting medication")),
+      );
+      return false;
+    }
+  }
+
   Future<bool> _deleteFileFromCloud(String fileName) async {
     final token = await _currentUser!.authentication;
 
@@ -869,14 +1132,35 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _patientNameController = TextEditingController();
+
   final _medicationNameController = TextEditingController();
   final _dosageController = TextEditingController();
   final _frequencyController = TextEditingController();
+
   bool _isLoading = false;
 
   String _selectedUnit = 'tablet'; // Default dosage unit
   final List<String> _dosageUnits = ['tablet', 'mg', 'ml', 'capsule'];
+  final List<String> _timeOfDayOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
+  final List<String> _beforeAfterFoodOptions = ['Before Food', 'After Food'];
 
+  List<String> _selectedTimeOfDay = [];  // Default time of day
+  String _selectedBeforeAfterFood = 'Before Food';
+  List<String> _availableTimes = [];
+  void _updateAvailableTimes() {
+    final int? frequency = int.tryParse(_frequencyController.text);
+    if (frequency != null) {
+      if (frequency == 1) {
+        _availableTimes = ['Morning'];
+      } else if (frequency == 2) {
+        _availableTimes = ['Morning', 'Evening'];
+      } else if (frequency == 3) {
+        _availableTimes = ['Morning', 'Afternoon', 'Evening'];
+      } else {
+        _availableTimes = ['Morning', 'Afternoon', 'Evening', 'Night'];
+      }
+    }
+  }
   Future<void> _saveMedication() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -914,13 +1198,6 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   Future<void> _createMedicationRequest(String patientId) async {
     final medicationRequestUrl = 'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest';
 
-    int? frequency;
-    try {
-      frequency = int.parse(_frequencyController.text);
-    } catch (e) {
-      frequency = 1;
-    }
-
     final medicationRequest = {
       "resourceType": "MedicationRequest",
       "status": "active",
@@ -939,33 +1216,14 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
       },
       "dosageInstruction": [
         {
-          "text": "${_dosageController.text} $_selectedUnit ${frequency}x per day",
+          "text": "${_dosageController.text} ${_selectedTimeOfDay.join(', ')}, ${_selectedBeforeAfterFood}",
           "timing": {
             "repeat": {
-              "frequency": frequency,
+              "frequency": 1,
               "period": 1,
               "periodUnit": "d"
             }
-          },
-          "doseAndRate": [
-            {
-              "type": {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/dose-rate-type",
-                    "code": "ordered",
-                    "display": "Ordered"
-                  }
-                ]
-              },
-              "doseQuantity": {
-                "value": int.tryParse(_dosageController.text) ?? 1,
-                "unit": _selectedUnit,
-                "system": "http://unitsofmeasure.org",
-                "code": _selectedUnit.toUpperCase()
-              }
-            }
-          ]
+          }
         }
       ],
       "requester": {
@@ -1007,7 +1265,7 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
         }
       ],
       "active": true,
-      "gender": "unknown",
+      "gender": "unknown",  // Optional, can be dynamically set if needed
       "identifier": [
         {
           "system": "http://example.org/identifiers",
@@ -1077,71 +1335,83 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
                 },
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _dosageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Dosage',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter dosage';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedUnit,
-                      dropdownColor: Colors.white,
-                      items: _dosageUnits.map((unit) {
-                        return DropdownMenuItem(
-                          value: unit,
-                          child: Text(unit),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedUnit = value!;
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Unit',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
+              // Dosage field
+              TextFormField(
+                controller: _dosageController,  // Bind controller here
+                decoration: const InputDecoration(
+                  labelText: 'Dosage (e.g. 1 tablet)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter dosage';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _frequencyController,
                 decoration: const InputDecoration(
-                  labelText: 'Frequency',
+                  labelText: 'Frequency (e.g. 1, 2, 3, etc.)',
                   border: OutlineInputBorder(),
                 ),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  setState(() {
+                    _updateAvailableTimes();  // Update available times based on frequency
+                  });
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Enter frequency';
+                    return 'Please enter frequency';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              // Display time selection based on frequency
+              ..._timeOfDayOptions.map((time) {
+                return CheckboxListTile(
+                  title: Text(time),
+                  value: _selectedTimeOfDay.contains(time),
+                  onChanged: (bool? selected) {
+                    setState(() {
+                      // Allow selection if the limit is not reached
+                      if (selected == true && _selectedTimeOfDay.length < int.parse(_frequencyController.text)) {
+                        _selectedTimeOfDay.add(time);
+                      } else if (selected == false) {
+                        _selectedTimeOfDay.remove(time);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+              const SizedBox(height: 16),
+              // Food timing selection (before or after food)
+              DropdownButtonFormField<String>(
+                value: _selectedBeforeAfterFood,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedBeforeAfterFood = newValue!;
+                  });
+                },
+                items: _beforeAfterFoodOptions
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Before or After Food',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _saveMedication,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue, // Change button color
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text('Save Medication',style: TextStyle(color: Colors.white),),
+                child: const Text('Save Medication'),
               ),
             ],
           ),
@@ -1149,6 +1419,7 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
       ),
     );
   }
+
 
   @override
   void dispose() {
