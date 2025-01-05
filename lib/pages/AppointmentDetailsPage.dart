@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '/pages/HomePage.dart';
 
 class AppointmentDetailsPage extends StatelessWidget {
   final Map<String, dynamic> appointment;
@@ -299,6 +300,7 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Appointment rescheduled successfully!')),
         );
+        Navigator.push(context, MaterialPageRoute(builder: (context)=> Homepage()));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No matching appointment found.')),
