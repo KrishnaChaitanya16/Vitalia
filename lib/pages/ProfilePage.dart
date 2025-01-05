@@ -17,6 +17,7 @@ class _ProfilepageState extends State<Profilepage> {
   late String email = 'Unknown';
   late String gender = 'Unknown';
   late String dob = 'Unknown';
+  late String bloodGroup = 'Unknown'; // New blood group field
   bool _isLoading = true;
 
   @override
@@ -47,6 +48,7 @@ class _ProfilepageState extends State<Profilepage> {
           email = userData['email'] ?? 'Unknown';
           gender = userData['gender'] ?? 'Unknown';
           dob = userData['dob'] ?? 'Unknown';
+          bloodGroup = userData['bloodGroup'] ?? 'Unknown'; // Fetch blood group
           _isLoading = false;
         });
       } else {
@@ -59,18 +61,18 @@ class _ProfilepageState extends State<Profilepage> {
     }
   }
 
-  Future<void> _handleLogout() async {
+  Future<void> _updateUserProfile(String key, String value) async {
     try {
-      await _auth.signOut();
-      // Navigate to login page - Replace with your login route
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) =>  Loginscreen()),  // Replace with your desired page
-            (Route<dynamic> route) => false,  // This removes all the previous routes
-      );
+      User? user = _auth.currentUser;
+      if (user == null) return;
 
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({key: value});
+      _showSnackBar('$key updated successfully');
     } catch (e) {
-      _showSnackBar('Error logging out: $e');
+      _showSnackBar('Error updating $key: $e');
     }
   }
 
@@ -182,40 +184,55 @@ class _ProfilepageState extends State<Profilepage> {
       ),
       child: Column(
         children: [
-          _buildProfileItem(
+          _buildEditableProfileItem(
             icon: Icons.person,
             title: 'Full Name',
             value: fullName,
+            keyName: 'fullName',
           ),
           const Divider(height: 30),
-          _buildProfileItem(
+          _buildEditableProfileItem(
             icon: Icons.email,
             title: 'Email',
             value: email,
+            keyName: 'email',
           ),
           const Divider(height: 30),
-          _buildProfileItem(
+          _buildEditableProfileItem(
             icon: Icons.wc,
             title: 'Gender',
             value: gender,
+            keyName: 'gender',
           ),
           const Divider(height: 30),
-          _buildProfileItem(
+          _buildEditableProfileItem(
             icon: Icons.cake,
             title: 'Date of Birth',
             value: dob,
+            keyName: 'dob',
+          ),
+          const Divider(height: 30),
+          _buildEditableProfileItem(
+            icon: Icons.bloodtype,
+            title: 'Blood Group',
+            value: bloodGroup,
+            keyName: 'bloodGroup', // Blood group field
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileItem({
+  Widget _buildEditableProfileItem({
     required IconData icon,
     required String title,
     required String value,
+    required String keyName,
   }) {
+    final bool isEditable = value == 'Unknown'; // Check if the value is 'Unknown'
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
@@ -236,24 +253,65 @@ class _ProfilepageState extends State<Profilepage> {
             children: [
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
+              isEditable
+                  ? TextFormField(
+                initialValue: '',
+                decoration: InputDecoration(
+
+                  labelStyle: TextStyle(color: Colors.grey[600]),
+                  border: InputBorder.none,
+                ),
+                onFieldSubmitted: (newValue) {
+                  if (newValue.isNotEmpty) {
+                    setState(() {
+                      if (keyName == 'fullName') fullName = newValue;
+                      if (keyName == 'email') email = newValue;
+                      if (keyName == 'gender') gender = newValue;
+                      if (keyName == 'dob') dob = newValue;
+                      if (keyName == 'bloodGroup') bloodGroup = newValue; // Update blood group
+                    });
+                    _updateUserProfile(keyName, newValue);
+                  }
+                },
+              )
+                  : Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[800],
                 ),
               ),
             ],
           ),
         ),
+        if (isEditable)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.blue),
+            onPressed: () {
+              _showSnackBar('You can edit the $title field directly.');
+            },
+          ),
       ],
     );
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      await _auth.signOut();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => Loginscreen()),
+            (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      _showSnackBar('Error logging out: $e');
+    }
   }
 
   Widget _buildLogoutButton() {

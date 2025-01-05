@@ -1242,6 +1242,7 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
       body: json.encode(medicationRequest),
     );
 
+
     if (response.statusCode != 201) {
       throw Exception('Failed to create medication request: ${response.statusCode}\nResponse: ${response.body}');
     }

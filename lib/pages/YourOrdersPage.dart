@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class YourOrdersPage extends StatefulWidget {
   const YourOrdersPage({Key? key}) : super(key: key);
@@ -51,6 +52,26 @@ class _YourOrdersPageState extends State<YourOrdersPage> {
       return 'Delivered on ${formatter.format(deliveryTime)} at ${timeFormatter.format(deliveryTime)}';
     }
   }
+  Future<String?> _fetchCurrentUserName() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        // Fetch user document from the Firestore 'users' collection
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        // Return the fullName if it exists, else null
+        return userDoc.exists ? userDoc['fullName'] as String? : null;
+      } catch (e) {
+        print('Error fetching fullName: $e');
+      }
+    }
+    return null; // Return null if no user is signed in or an error occurs
+  }
+
 
 
 
@@ -60,14 +81,25 @@ class _YourOrdersPageState extends State<YourOrdersPage> {
     });
 
     try {
-      final ordersSnapshot = await FirebaseFirestore.instance.collection('orders').get();
-      final orders = ordersSnapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-          .toList();
+      // Await the result of _fetchCurrentUserName
+      String? currentUserName = await _fetchCurrentUserName();
 
-      setState(() {
-        _orders = orders;
-      });
+      if (currentUserName != null) {
+        final ordersSnapshot = await FirebaseFirestore.instance
+            .collection('orders')
+            .where('userName', isEqualTo: currentUserName)
+            .get();
+
+        final orders = ordersSnapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+            .toList();
+
+        setState(() {
+          _orders = orders;
+        });
+      } else {
+        print('User name not found.');
+      }
     } catch (e) {
       print('Error fetching orders: $e');
     } finally {
@@ -76,6 +108,8 @@ class _YourOrdersPageState extends State<YourOrdersPage> {
       });
     }
   }
+
+
   Widget _buildMedicineList(List<dynamic> medicines) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,7 +402,8 @@ class _YourOrdersPageState extends State<YourOrdersPage> {
               final order = _orders[index];
               final orderId = order['id'] ?? 'Unknown ID';
               final deliveryTime = (order['deliveryTime'] as Timestamp).toDate();
-              final status = order['status'] ?? 'Pending';
+              final status = DateTime.now().isAfter(deliveryTime) ? 'Delivered' : (order['status'] ?? 'Pending');
+
 
               return Card(
                 color: Colors.white,
