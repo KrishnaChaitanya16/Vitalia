@@ -152,63 +152,115 @@ class AppointmentDetailsPage extends StatelessWidget {
 
 
 
+
+
 class RescheduleAppointmentPage extends StatefulWidget {
   final Map<String, dynamic> appointment;
 
-  const RescheduleAppointmentPage({Key? key, required this.appointment})
-      : super(key: key);
+  const RescheduleAppointmentPage({
+    Key? key,
+    required this.appointment,
+  }) : super(key: key);
 
   @override
-  _RescheduleAppointmentPageState createState() =>
-      _RescheduleAppointmentPageState();
+  _RescheduleAppointmentPageState createState() => _RescheduleAppointmentPageState();
 }
 
 class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
   DateTime? _newDate;
   String? _newSlot;
-  Set<String> bookedSlots = {}; // Set to store booked slots
+  Set<String> bookedSlots = {};
+  List<String> availableSlots = [];
+  bool isLoading = false;
 
-  // Fetch the available time slots from Firestore
+  @override
+  void initState() {
+    super.initState();
+    // Don't load slots initially, wait for date selection
+  }
+
+  Future<void> _loadSlotsForDate(DateTime selectedDate) async {
+    setState(() {
+      isLoading = true;
+      _newSlot = null; // Reset selected slot when date changes
+      availableSlots.clear(); // Clear previous slots
+      bookedSlots.clear(); // Clear previous booked slots
+    });
+
+    try {
+      // First fetch all available slots for the doctor
+      final slots = await _fetchTimeSlots();
+      print("Fetched all slots from doctor: $slots"); // Debug print
+
+      // Then fetch booked slots for the selected date
+      await _fetchBookedSlots(selectedDate);
+      print("Fetched booked slots: $bookedSlots"); // Debug print
+
+      // Update available slots
+      setState(() {
+        availableSlots = slots;
+        isLoading = false;
+      });
+
+      // Debug print filtered slots
+      final filteredSlots = slots.where((slot) => !bookedSlots.contains(slot)).toList();
+      print("Available slots after filtering: $filteredSlots");
+    } catch (e) {
+      print("Error loading slots: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   Future<List<String>> _fetchTimeSlots() async {
     try {
-      final doctorSnapshot = await FirebaseFirestore.instance
+      // Query the doctors collection using the doctor's name
+      final doctorQuery = await FirebaseFirestore.instance
           .collection('doctors')
-          .doc(widget.appointment['name']) // Assuming doctorId is available in the appointment
+          .where('name', isEqualTo: widget.appointment['doctorName'])
           .get();
 
-      if (doctorSnapshot.exists) {
-        final doctorData = doctorSnapshot.data();
-        if (doctorData != null && doctorData['availableSlots'] != null) {
-          return List<String>.from(doctorData['availableSlots']);
+      if (doctorQuery.docs.isNotEmpty) {
+        // Assuming there will only be one match for the doctor's name
+        final doctorData = doctorQuery.docs.first.data();
+        if (doctorData['availableSlots'] != null) {
+          List<String> slots = List<String>.from(doctorData['availableSlots']);
+          print("Successfully fetched slots: $slots"); // Debug print
+          return slots;
         }
       }
+      print("No slots found for the doctor name: ${widget.appointment['doctorName']}"); // Debug print
     } catch (e) {
       print("Error fetching time slots: $e");
     }
-    return []; // Return empty if no slots are found or there's an error
+    return [];
   }
 
-  // Fetch booked slots for the selected date
+
   Future<void> _fetchBookedSlots(DateTime selectedDate) async {
     try {
+      // Normalize the selected date to start of day
+      final startOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+
       final snapshot = await FirebaseFirestore.instance
           .collection('appointments')
-          .where('doctorId', isEqualTo: widget.appointment['name'])
-          .where('selectedDate', isEqualTo: Timestamp.fromDate(selectedDate))
+          .where('doctorId', isEqualTo: widget.appointment['doctorId'])
+          .where('selectedDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('selectedDate', isLessThan: Timestamp.fromDate(startOfDay.add(const Duration(days: 1))))
           .get();
 
       setState(() {
         bookedSlots = snapshot.docs
             .map((doc) => doc['selectedSlot'] as String)
-            .toSet(); // Store booked slots in a set
-        print("Booked Slots: $bookedSlots"); // Debugging: Check the booked slots
+            .toSet();
+        print("Booked Slots for ${startOfDay.toString()}: $bookedSlots"); // Debug print
       });
     } catch (e) {
       print("Error fetching booked slots: $e");
     }
   }
 
-  // Reschedule the appointment
   Future<void> _reschedule() async {
     if (_newDate == null || _newSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,34 +270,62 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
     }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('appointments')
-          .doc(widget.appointment['appointmentId'])
-          .update({
-        'selectedDate': Timestamp.fromDate(_newDate!),
-        'selectedSlot': _newSlot,
-        'status': 'Rescheduled',
+      setState(() {
+        isLoading = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment rescheduled successfully!')),
-      );
+      // Query to find the document based on doctorName and patientName
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('appointments')
+          .where('doctorName', isEqualTo: widget.appointment['doctorName'])
+          .where('patientName', isEqualTo: widget.appointment['patientName'])
+          .get();
 
-      Navigator.pop(context);
+      if (querySnapshot.docs.isNotEmpty) {
+        // Assuming there is only one matching document
+        final docId = querySnapshot.docs.first.id;
+
+        // Update the selectedSlot and other fields
+        await FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(docId)
+            .update({
+          'selectedDate': Timestamp.fromDate(_newDate!),
+          'selectedSlot': _newSlot,
+
+          'lastUpdated': Timestamp.now(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment rescheduled successfully!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No matching appointment found.')),
+        );
+      }
     } catch (e) {
+      print('Error while rescheduling: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to reschedule appointment. Please try again.')),
       );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get the available slots excluding booked ones
+    final filteredSlots = availableSlots.where((slot) => !bookedSlots.contains(slot)).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reschedule Appointment'),
         backgroundColor: Colors.white,
-        elevation: 0, // Remove app bar shadow for a cleaner look
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -257,7 +337,6 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            // Calendar widget directly in the UI
             TableCalendar(
               firstDay: DateTime.now(),
               lastDay: DateTime.now().add(const Duration(days: 365)),
@@ -265,17 +344,17 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
               selectedDayPredicate: (day) => isSameDay(_newDate, day),
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {
-                  _newDate = selectedDay; // Update new date
+                  _newDate = selectedDay;
                 });
-                _fetchBookedSlots(selectedDay); // Fetch booked slots for the selected date
+                _loadSlotsForDate(selectedDay);
               },
               calendarStyle: const CalendarStyle(
                 todayDecoration: BoxDecoration(
-                  color: Colors.orange, // Highlight today's date
+                  color: Colors.orange,
                   shape: BoxShape.circle,
                 ),
                 selectedDecoration: BoxDecoration(
-                  color: Colors.blue, // Highlight selected date
+                  color: Colors.blue,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -286,73 +365,61 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            FutureBuilder<List<String>>(
-              future: _fetchTimeSlots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Error loading time slots.'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No available time slots.'));
-                }
-                final timeSlots = snapshot.data!;
-
-                // If no appointments exist for the selected date, show all available slots
-                if (_newDate == null || bookedSlots.isEmpty) {
-                  return DropdownButton<String>(
-                    value: _newSlot,
-                    hint: const Text('Select Time Slot'),
-                    items: timeSlots.map((slot) {
-                      return DropdownMenuItem(
-                        value: slot,
-                        child: Text(slot),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _newSlot = value;
-                      });
-                    },
-                  );
-                } else {
-                  // Filter out the booked slots
-                  final availableSlots = timeSlots.where((slot) => !bookedSlots.contains(slot)).toList();
-                  print("Available Slots after filtering: $availableSlots");
-
-                  return availableSlots.isEmpty
-                      ? const Center(child: Text('No available slots for this date.'))
-                      : DropdownButton<String>(
-                    value: _newSlot,
-                    hint: const Text('Select Time Slot'),
-                    items: availableSlots.map((slot) {
-                      return DropdownMenuItem(
-                        value: slot,
-                        child: Text(slot),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _newSlot = value;
-                      });
-                    },
-                  );
-                }
-              },
-            ),
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_newDate == null)
+              const Center(child: Text('Please select a date first'))
+            else if (filteredSlots.isEmpty)
+                const Center(child: Text('No available time slots for this date'))
+              else
+                GridView.builder(
+                  shrinkWrap: true, // Ensures it doesn't take infinite height
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // Two slots per row
+                    crossAxisSpacing: 10, // Space between columns
+                    mainAxisSpacing: 10, // Space between rows
+                    childAspectRatio: 3, // Adjust the aspect ratio for button height
+                  ),
+                  itemCount: filteredSlots.length,
+                  itemBuilder: (context, index) {
+                    final slot = filteredSlots[index];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _newSlot = slot;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _newSlot == slot ? Colors.blue : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          slot,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _newSlot == slot ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
             const Spacer(),
             Align(
               alignment: Alignment.bottomCenter,
               child: ElevatedButton(
-                onPressed: _reschedule,
+                onPressed: isLoading ? null : _reschedule,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue, // Blue background color
-                  padding: const EdgeInsets.symmetric(vertical: 16.0), // Larger button
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  minimumSize: const Size(double.infinity, 50),
                   textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                child: const Text('Reschedule Appointment'),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Reschedule Appointment',style: TextStyle(color: Colors.white),),
               ),
             ),
           ],
@@ -360,4 +427,5 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
       ),
     );
   }
+
 }
