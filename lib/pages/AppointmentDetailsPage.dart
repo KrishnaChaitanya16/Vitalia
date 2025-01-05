@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '/pages/HomePage.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppointmentDetailsPage extends StatelessWidget {
   final Map<String, dynamic> appointment;
@@ -70,18 +71,22 @@ class AppointmentDetailsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appointment Details'),
+        title: Text(
+          'Appointment Details',
+          style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         elevation: 8.0,
         backgroundColor: Colors.white,
       ),
-      body: Padding(
+      body: Container(
+        color: const Color.fromRGBO(219, 239, 255, 1), // Background color
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Doctor: ${appointment['doctorName']}',
-              style: const TextStyle(
+              style: GoogleFonts.nunito(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -89,16 +94,20 @@ class AppointmentDetailsPage extends StatelessWidget {
             const SizedBox(height: 15),
             Text(
               'Date: ${selectedDate.toLocal().toString().split(' ')[0]}',
-              style: const TextStyle(fontSize: 20),
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+              ),
             ),
             Text(
               'Time: $selectedSlot',
-              style: const TextStyle(fontSize: 20),
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+              ),
             ),
             const SizedBox(height: 25),
-            const Text(
+            Text(
               'Additional Details:',
-              style: TextStyle(
+              style: GoogleFonts.nunito(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -106,40 +115,57 @@ class AppointmentDetailsPage extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               'Patient Name: ${appointment['patientName']}',
-              style: const TextStyle(fontSize: 20),
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+              ),
             ),
             Text(
               'Status: ${appointment['status']}',
-              style: const TextStyle(fontSize: 20),
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+              ),
             ),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+                // Reschedule Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue, // Background color
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15,
+                      horizontal: 30,
+                    ),
+                    textStyle: GoogleFonts.nunito(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   onPressed: () => _rescheduleAppointment(context),
                   child: const Text(
                     'Reschedule',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.blue,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+                // Cancel Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red, // Background color
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15,
+                      horizontal: 30,
+                    ),
+                    textStyle: GoogleFonts.nunito(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  onPressed: () => _cancelAppointment(context,appointment['doctorName']),
+                  onPressed: () =>
+                      _cancelAppointment(context, appointment['doctorName']),
                   child: const Text(
                     'Cancel Appointment',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.red,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
