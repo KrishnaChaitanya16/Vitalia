@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '/pages/LoginScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Profilepage extends StatefulWidget {
   const Profilepage({Key? key}) : super(key: key);
@@ -303,10 +304,17 @@ class _ProfilepageState extends State<Profilepage> {
 
   Future<void> _handleLogout() async {
     try {
+      // Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      // Log out the user
       await _auth.signOut();
+
+      // Navigate to the login screen
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => Loginscreen()),
+        MaterialPageRoute(builder: (context) => const Loginscreen()),
             (Route<dynamic> route) => false,
       );
     } catch (e) {

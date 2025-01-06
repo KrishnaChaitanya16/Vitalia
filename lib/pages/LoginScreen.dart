@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '/pages/SignUpScreen.dart';
 import '/pages/HomePage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Loginscreen extends StatefulWidget {
   const Loginscreen({super.key});
@@ -34,6 +35,30 @@ class _LoginscreenState extends State<Loginscreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
+  Future<void> _saveLoginState(String email) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    await prefs.setString('userEmail', email);
+  }
+
+  // Check login state and navigate
+  Future<void> _checkLoginState() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (isLoggedIn) {
+      // Navigate to home page directly
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Homepage()),
+      );
+    }
+  }
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginState(); // Check login state when the screen initializes
+  }
 
   Future<void> _loginWithEmailPassword() async {
     try {
@@ -41,6 +66,7 @@ class _LoginscreenState extends State<Loginscreen> {
         email: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      await _saveLoginState(userCredential.user?.email ?? "");
       _showSnackbar("Login Successful: ${userCredential.user?.email}", true);
 
       // Navigate to the home page
@@ -71,6 +97,7 @@ class _LoginscreenState extends State<Loginscreen> {
       );
 
       UserCredential userCredential = await _auth.signInWithCredential(credential);
+      await _saveLoginState(userCredential.user?.email ?? "");
       _showSnackbar("Welcome, ${userCredential.user?.displayName ?? 'User '}!", true);
 
       Navigator.pushReplacement(
