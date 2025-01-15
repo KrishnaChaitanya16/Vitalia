@@ -148,6 +148,7 @@ class AppointmentDetailsPage extends StatelessWidget {
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
+
                 // Cancel Button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

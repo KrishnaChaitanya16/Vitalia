@@ -61,6 +61,11 @@ dependencies:
   url_launcher: ^6.0.20
   shared_preferences:
   tutorial_coach_mark:
+  speech_to_text:
+  cached_network_image:
+  shimmer:
+  webview_flutter:
+  model_viewer_plus:
 
 
 dev_dependencies:

@@ -8,6 +8,7 @@
 - Locate diagnostic centers and book medical tests.
 - Store and manage health records securely.
 - Interact with an AI medical chatbot, **VitalAI**, powered by **Gemini**.
+- Find blood donors through the Find Donor feature.
 
 ---
 
@@ -20,6 +21,7 @@
 - **Health Record Management**: Access, update, and securely store health records using the **Google Healthcare API**.
 - **AI Chatbot - VitalAI**: Interact with **VitalAI**, an AI-powered medical chatbot built using **Gemini**, to get medical advice and information.
 - **Prescription and Bill Tracking**: Upload prescriptions and bills to keep track of them and manage your health records.
+- **Find donor** : Locate nearby blood donors who are willing to donate blood, using a donor lookup feature integrated with the app. Users can contact donors directly for assistance in case of medical emergencies.
 
 ---
 
@@ -113,7 +115,7 @@ To run your Flutter app on an emulator, you'll need to set up an Android Virtual
 ### **Demo Video**
 
 Watch the demo video of the **Vitalia** app on YouTube:  
-[Vitalia Demo Video](https://youtu.be/JjiYOb3D-3A)
+[Vitalia Demo Video](https://youtu.be/k4d1gEqNPh0)
 
 ## **APK Download**
 
@@ -143,8 +145,4 @@ To install the app on your Android device:
 ### **Launch the App**:
 1. Once the installation is complete, you can find the app in your device's app drawer.
 
-
-
-
-
-
+**Please check out the APK to explore all the features , due to time constraints on video not all features are shown in video.**

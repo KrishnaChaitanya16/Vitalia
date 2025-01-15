@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatbotPage extends StatefulWidget {
   const ChatbotPage({super.key});
@@ -17,10 +20,78 @@ class _ChatbotPageState extends State<ChatbotPage> {
   String apiKey = ""; // Add your actual API key here
   final ScrollController _scrollController = ScrollController();
 
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  bool _speechInitialized = false;
+
+
+
   @override
   void initState() {
     super.initState();
     _fetchApiKey();
+    _initSpeech();
+  }
+  Future<void> _initSpeech() async {
+    try {
+      _speechInitialized = await _speech.initialize(
+        onError: (error) => print('Speech to text error: $error'),
+        onStatus: (status) {
+          print('Speech to text status: $status');
+          if (status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+      );
+      setState(() {});
+    } catch (e) {
+      print('Speech initialization error: $e');
+      _speechInitialized = false;
+      setState(() {});
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    if (!_speechInitialized) {
+      await _initSpeech();
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      if (_speechInitialized) {
+        setState(() => _isListening = true);
+        try {
+          await _speech.listen(
+            onResult: (result) {
+              setState(() {
+                _messageController.text = result.recognizedWords;
+                if (result.finalResult) {
+                  _isListening = false;
+                  if (_messageController.text.isNotEmpty) {
+                    _sendMessage(_messageController.text);
+                    _messageController.clear();
+                  }
+                }
+              });
+            },
+          );
+        } catch (e) {
+          print('Error starting speech recognition: $e');
+          setState(() => _isListening = false);
+        }
+      } else {
+        print('Speech recognition not initialized');
+        // Optionally show a snackbar or alert to the user
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Speech recognition not available'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _fetchApiKey() async {
@@ -50,7 +121,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
 
     if (apiKey.isEmpty) {
       setState(() {
-        _chatHistory.removeLast(); // Remove the typing indicator
+        _chatHistory.removeLast();
         _chatHistory.add({
           "role": "bot",
           "content": "API key is not available. Please try again later."
@@ -59,10 +130,47 @@ class _ChatbotPageState extends State<ChatbotPage> {
       return;
     }
 
-    final url = Uri.parse(
-        "https://generativelanguage.googleapis.com/v1beta/tunedModels/medicalchatbotvitalia-3lhnnicj69h6:generateContent?key=$apiKey");
-
+    // Fetch user details from Firebase
     try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          _chatHistory.removeLast();
+          _chatHistory.add({
+            "role": "bot",
+            "content": "Please login to continue."
+          });
+        });
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        setState(() {
+          _chatHistory.removeLast();
+          _chatHistory.add({
+            "role": "bot",
+            "content": "User profile not found."
+          });
+        });
+        return;
+      }
+
+      final userData = userDoc.data()!;
+
+      // Build conversation history for context
+      List<Map<String, String>> conversationHistory = _chatHistory
+          .where((msg) => msg["content"] != "typing...")
+          .take(_chatHistory.length - 2) // Exclude the current message and typing indicator
+          .toList();
+
+      final url = Uri.parse(
+          "https://generativelanguage.googleapis.com/v1beta/tunedModels/medicalchatbotvitalia-3lhnnicj69h6:generateContent?key=$apiKey");
+
       final response = await http.post(
         url,
         headers: {
@@ -72,26 +180,48 @@ class _ChatbotPageState extends State<ChatbotPage> {
           "contents": [
             {
               "parts": [
-                {"text": message}
+                {
+                  "text": """
+User Profile:
+Name: ${userData['fullName'] ?? 'Not provided'}
+Gender: ${userData['gender'] ?? 'Not provided'}
+Age/DOB: ${userData['dob'] ?? 'Not provided'}
+Blood Group: ${userData['bloodGroup'] ?? 'Not provided'}
+Height: ${userData['height'] ?? 'Not provided'} cm
+Weight: ${userData['weight'] ?? 'Not provided'} kg
+Blood Pressure: ${userData['bloodPressure'] ?? 'Not provided'} mmHg
+Pulse Rate: ${userData['pulseRate'] ?? 'Not provided'} bpm
+Medical Conditions: ${(userData['conditions'] as List?)?.join(', ') ?? 'None'}
+Current Medications: ${userData['medications'] ?? 'None'}
+Allergies: ${(userData['allergies'] as List?)?.join(', ') ?? 'None'}
+
+Previous Conversation:
+${conversationHistory.map((msg) => "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['content']}").join('\n')}
+
+Current User Message: $message"""
+                }
               ]
             }
-          ]
+          ],
+
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 1024,
+          }
         }),
       );
 
       setState(() {
-        _chatHistory.removeLast(); // Remove the typing indicator
+        _chatHistory.removeLast(); // Remove typing indicator
       });
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         if (data["candidates"] != null && data["candidates"].isNotEmpty) {
-          var reply =
-              data["candidates"][0]["content"]["parts"][0]["text"] ??
-                  "No response from Gemini";
-          reply = reply.length > 150 ? "${reply.substring(0, 150)}..." : reply;
-
+          final reply = data["candidates"][0]["content"]["parts"][0]["text"] ??
+              "No response from Gemini";
           setState(() {
             _chatHistory.add({"role": "bot", "content": reply});
           });
@@ -99,26 +229,32 @@ class _ChatbotPageState extends State<ChatbotPage> {
           setState(() {
             _chatHistory.add({
               "role": "bot",
-              "content": "No valid response returned from Gemini."
+              "content": "Sorry, I couldn't process that response."
             });
           });
         }
       } else {
+        print("API Error: ${response.statusCode} - ${response.body}");
         setState(() {
           _chatHistory.add({
             "role": "bot",
-            "content": "Error ${response.statusCode}: ${response.body}",
+            "content": "Sorry, I encountered an error. Please try again."
           });
         });
       }
     } catch (e) {
+      print("Error: $e");
       setState(() {
-        _chatHistory.removeLast(); // Remove the typing indicator
-        _chatHistory.add({"role": "bot", "content": "Error: $e"});
+        _chatHistory.removeLast();
+        _chatHistory.add({
+          "role": "bot",
+          "content": "An error occurred. Please try again later."
+        });
       });
     }
-  }
 
+    _scrollToBottom();
+  }
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -362,11 +498,43 @@ class _ChatbotPageState extends State<ChatbotPage> {
               ),
               child: Row(
                 children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade400, Colors.blue.shade600],
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(25),
+                        onTap: _toggleListening,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            _isListening ? Icons.mic : Icons.mic_none,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: "Type your message...",
+                        hintText:_isListening
+                            ? "Listening..."
+                            : "Type your message...",
                         hintStyle: GoogleFonts.nunito(
                           color: Colors.grey.shade600,
                         ),

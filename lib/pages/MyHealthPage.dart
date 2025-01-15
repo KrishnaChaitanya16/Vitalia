@@ -149,110 +149,82 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
 
   Future<void> _fetchPatientRecords() async {
-    if (_currentUser == null) {
-      await _signIn();
-      if (_currentUser == null) {
+    try {
+      // Step 1: Get current Firebase user
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Sign-in failed")),
+          const SnackBar(content: Text("Please sign in to view records")),
         );
         return;
       }
-    }
 
-    final token = await _currentUser!.authentication;
-    print(token);
+      // Step 2: Fetch user profile data
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
 
-    if (token.accessToken == null) {
-
-      return;
-    }
-    print(token.accessToken);
-
-    final authClient = authenticatedClient(
-      http.Client(),
-      AccessCredentials(
-        AccessToken('Bearer', token.accessToken!, DateTime.now().toUtc().add(Duration(hours: 1))),
-        '',
-        _googleSignIn.scopes,
-      ),
-    );
-
-
-
-
-    try {
-      // Step 1: Get the current Firebase user to fetch their UID
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null) {
-        throw Exception("Firebase user not found. Make sure the user is signed in.");
-      }
-
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
       if (!userDoc.exists) {
-        throw Exception("User document not found in Firestore");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User profile not found")),
+        );
+        return;
       }
 
-      final userData = userDoc.data();
-      final userName = userData?['fullName'];
+      final userData = userDoc.data()!;
+      final userName = userData['fullName'] as String?;
+      final birthDate = userData['birthDate'] as String?;
+
       if (userName == null || userName.isEmpty) {
-        throw Exception("User name not found in Firestore");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User profile incomplete")),
+        );
+        return;
       }
 
-      // Step 2: Fetch the Patient resource matching the user's name
-      final patientResponse = await authClient.get(Uri.parse('$baseUrl/Patient?name=$userName'));
-      if (patientResponse.statusCode != 200) {
-        throw Exception("Failed to fetch Patient resource");
-      }
+      // Step 3: Fetch medication requests for the user
+      final currentUserDocId = firebaseUser.uid;
 
-      final patientData = json.decode(patientResponse.body);
-      final entries = patientData['entry'] ?? [];
-      if (entries.isEmpty) {
-        throw Exception("No Patient record found for the name $userName");
-      }
+      final medicationSnapshot = await FirebaseFirestore.instance
+          .collection('medicationRequests') // Access the medicationRequests collection directly
+          .where('patientId', isEqualTo: currentUserDocId) // Filter by patientId
+          // Order by authoredOn
+          .get();
 
-      // Assuming the first entry corresponds to the current user
-      final patientRef = entries[0]['resource']['id'];
-      if (patientRef == null) {
-        throw Exception("Patient reference not found for the current user");
-      }
 
-      // Step 3: Fetch medication requests for the identified patient
-      final medicationRequestUrl = '$baseUrl/MedicationRequest?subject=Patient/$patientRef';
-      final response = await authClient.get(Uri.parse(medicationRequestUrl));
+      List<Map<String, dynamic>> medications = [];
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final requests = data['entry'] ?? [];
-
-        List<Map<String, dynamic>> medications = [];
-        for (var entry in requests) {
-          final request = entry['resource'];
-          medications.add({
-            'medicationName': request['medicationCodeableConcept']?['coding']?[0]?['display'] ?? 'Unknown Medication',
-            'dosage': request['dosageInstruction']?[0]?['text'] ?? 'Unknown Dosage',
-            'startDate': request['authoredOn'] ?? 'Unknown Date',
-          });
-        }
-
-        // Step 4: Update the state with fetched medications
-        setState(() {
-          _uploadedRecords = [
-            {
-              'patientRef': patientRef,
-              'name': userName,
-              'birthDate': entries[0]['resource']['birthDate'] ?? 'Unknown Date',
-              'medications': medications,
-            }
-          ];
+      for (var doc in medicationSnapshot.docs) {
+        final data = doc.data();
+        print("Data is :${data}");
+        medications.add({
+          'medicationName': data['medicationInfo']['name'] ?? 'Unknown Medication',
+          'dosage': data['dosageInstruction']['text'] ?? 'Unknown Dosage',
+          'startDate': data['authoredOn'] ?? 'Unknown Date',
+          'status': data['status'] ?? 'active',
+          'prescriber': data['prescriber'] ?? 'Unknown',
+          'medicationId': doc.id,
         });
-
-
-      } else {
-        throw Exception("Failed to fetch medication requests for the current user");
       }
+      print("Medications: ${medications}");
+
+      // Step 4: Update the state with fetched data
+      setState(() {
+        _uploadedRecords = [
+          {
+            'patientRef': firebaseUser.uid,
+            'name': userName,
+            'birthDate': birthDate ?? 'Unknown Date',
+            'medications': medications,
+          }
+        ];
+      });
+
     } catch (e) {
-
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching records: ${e.toString()}")),
+      );
     }
   }
 
@@ -261,22 +233,25 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       // Google Sign-In to get the authentication token
       GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-
-        return;
+        return; // User cancelled sign-in
       }
 
       GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       String accessToken = googleAuth.accessToken ?? '';
+      String userEmail = googleUser.email;
 
       if (accessToken.isEmpty) {
-
-        return;
+        return; // Failed to get the access token
       }
 
-      // Correct API URL for fetching files from the bucket
-      final apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_care_bucket_10/o';
+      // Define the folder name for the user (using email as the folder name)
+      final userFolder = Uri.encodeComponent(userEmail);
 
-      // Send GET request to list the objects in the bucket
+      // Correct API URL for fetching files from the user's folder in the bucket
+      final apiUrl =
+          'https://storage.googleapis.com/storage/v1/b/health_care_bucket_10/o?prefix=$userFolder/';
+
+      // Send GET request to list the objects in the user's folder
       final response = await http.get(
         Uri.parse(apiUrl),
         headers: {
@@ -284,14 +259,13 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         },
       );
 
-
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         List<dynamic> items = jsonResponse['items'] ?? [];
 
         if (items.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("No files found in the bucket")),
+            const SnackBar(content: Text("No files found in your folder")),
           );
           return;
         }
@@ -306,20 +280,27 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         }).toList();
 
         setState(() {
-          _uploadedFiles = fileRecords; // Update your state with fetched files
+          _uploadedFiles = fileRecords; // Update state with fetched files
         });
       } else {
-
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Failed to fetch files: ${response.statusCode} - ${response.reasonPhrase}",
+            ),
+          ),
+        );
       }
     } catch (e) {
-
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: $e")),
+      );
     }
   }
 
   Future<void> _fetchUploadedFilesP() async {
     try {
+      // Ensure the user is signed in
       GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -332,14 +313,18 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       String accessToken = googleAuth.accessToken ?? '';
 
       if (accessToken.isEmpty) {
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Access token is empty")),
+        );
         return;
       }
 
+      // Current user's folder (use email or a unique identifier)
+      String userFolder = googleUser.email ?? 'anonymous_user';
 
-
+      // Fetch all files from the bucket (updated API URL)
       final response = await http.get(
-        Uri.parse(api2),
+        Uri.parse('https://storage.googleapis.com/storage/v1/b/health_car_bucket_11/o'), // Updated API URL
         headers: {
           'Authorization': 'Bearer $accessToken',
         },
@@ -348,6 +333,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         List<dynamic> items = jsonResponse['items'] ?? [];
+
         if (items.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("No files found in the bucket")),
@@ -355,31 +341,49 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
           return;
         }
 
-        List<Map<String, String>> fileRecords = items.map((item) {
+        // Filter files to include only those in the user's folder
+        List<Map<String, String>> fileRecords = items
+            .where((item) => item['name'].toString().startsWith(userFolder))
+            .map((item) {
           return {
             'fileName': item['name'] as String,
             'uploadDate': item['timeCreated'] as String,
             'mediaLink': item['mediaLink'] as String,
             'cloudPath': item['name'] as String,
-
           };
         }).toList();
 
+        // Check if there are any files for the user
+        if (fileRecords.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No files found for the current user")),
+          );
+          return;
+        }
+
+        // Update the state with the filtered files
         setState(() {
           _uploadedFilesP = fileRecords;
         });
       } else {
-
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "Failed to fetch files: ${response.statusCode} - ${response.reasonPhrase}"),
+          ),
+        );
       }
     } catch (e) {
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: $e")),
+      );
     }
   }
 
+
   Future<void> _uploadPdfToGoogleCloudStorage() async {
     if (_currentUser == null) {
-      await _signIn();
+      await _signIn(); // Sign-in logic
       if (_currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign-in failed")),
@@ -388,9 +392,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       }
     }
 
+    // Let user pick a PDF file
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf'],
+      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'txt', 'docx'],
     );
     if (result == null) return;
 
@@ -404,21 +409,27 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       return;
     }
 
-    String fileName = '${DateTime.now().millisecondsSinceEpoch}.pdf';
+    // Get user's email or a unique identifier
+    String userFolder = _currentUser!.email ?? 'anonymous_user';
+    String fileName = '$userFolder/${DateTime.now().millisecondsSinceEpoch}.pdf';
 
     final token = await _currentUser!.authentication;
+
+    // API URL to upload file with the user's folder included in the path
     final apiUrl =
         'https://storage.googleapis.com/upload/storage/v1/b/health_care_bucket_10/o?uploadType=media&name=$fileName';
 
     try {
+      // Get file bytes
       var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
       if (fileBytes.isEmpty) {
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("File is empty, upload failed")),
+        );
         return;
       }
 
-
-
+      // Send POST request to upload the PDF
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
@@ -432,12 +443,21 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("PDF uploaded successfully")),
         );
+
+        // Refresh the list of uploaded files
         _fetchUploadedFiles();
       } else {
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "Failed to upload PDF: ${response.statusCode} - ${response.reasonPhrase}"),
+          ),
+        );
       }
     } catch (e) {
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: $e")),
+      );
     }
   }
 
@@ -452,9 +472,10 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       }
     }
 
+    // Pick a PDF file
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf'],
+      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'txt', 'docx'],
     );
     if (result == null) return;
 
@@ -468,55 +489,59 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
       return;
     }
 
-    String fileName = '${DateTime.now().millisecondsSinceEpoch}.pdf';
+    // Use the user's email as the folder name or fallback to "anonymous_user"
+    String userFolder = _currentUser!.email ?? 'anonymous_user';
+    String fileName = '$userFolder/${DateTime.now().millisecondsSinceEpoch}.${file.extension}';
 
+    // Ensure `api2` is properly initialized and valid
     final token = await _currentUser!.authentication;
-    final apiUrl =
-        '${api2}?uploadType=media&name=$fileName';
+    final apiUrl = 'https://storage.googleapis.com/upload/storage/v1/b/health_car_bucket_11/o?uploadType=media&name=$fileName';
 
     try {
+      // Read file bytes
       var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
 
+      // Upload the file to the bucket
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer ${token.accessToken}',
-          'Content-Type': 'application/pdf',
+          'Content-Type': 'application/pdf',  // You may want to adjust this for other file types
         },
         body: fileBytes,
       );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("PDF uploaded successfully")),
+          const SnackBar(content: Text("File uploaded successfully")),
         );
+
+        // Refresh the list of uploaded files
         _fetchUploadedFilesP();
       } else {
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "Failed to upload file: ${response.statusCode} - ${response.reasonPhrase}"),
+          ),
+        );
       }
     } catch (e) {
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: $e")),
+      );
     }
   }
 
   void _navigateToAddMedicationPage() async {
-    if (_currentUser != null) {
-      final token = await _currentUser!.authentication;
-      final accessToken = token.accessToken ?? '';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddMedicationPage(
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddMedicationPage(
-            accessToken: accessToken,
-          ),
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("User is not signed in"))
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildPageContent(String type) {
@@ -591,7 +616,8 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
                 print(record.toString());
 
                 final medications = record['medications'] as List?;
-                if (medications != null && medications.isNotEmpty) {
+
+                 if (medications != null && medications.isNotEmpty) {
                   final medication = medications[0]; // Assuming you want the first medication
                   final medicationName = medication['medicationName'];  // Get the medication name
 
@@ -680,12 +706,17 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Ongoing',
+                              record['medications'] == null || record['medications'].isEmpty
+                                  ? 'No Medications Yet'
+                                  : 'Ongoing',
                               style: TextStyle(color: Colors.white, fontSize: 12),
                             ),
+
                           ),
                         ],
                       ),
+
+
                       if (record['medications'] != null)
                         ...(record['medications'] as List).map((med) {
                           // Debug print
@@ -775,6 +806,7 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
                             ],
                           );
                         }).toList(),
+
                     ],
                   ),
                 ),
@@ -864,82 +896,73 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
     }
   }
   Future<bool> _deleteMedication(String medicationName) async {
-    final token = await _currentUser!.authentication;
-
-    if (token.accessToken == null || token.accessToken!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Authentication failed")),
-      );
-      return false;
-    }
-
-    // Step 1: Search for the medication in the FHIR store using medicationName
-    final searchUrl =
-        'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest?medication=$medicationName';
-
     try {
-      final searchResponse = await http.get(
-        Uri.parse(searchUrl),
-        headers: {
-          'Authorization': 'Bearer ${token.accessToken}',
-          'Content-Type': 'application/fhir+json',
-        },
-      );
-
-      if (searchResponse.statusCode == 200) {
-        final searchBody = json.decode(searchResponse.body);
-
-        // Check if the medication exists and extract its ID
-        final medicationId = searchBody['entry']?[0]?['resource']?['id'];
-
-        if (medicationId == null) {
+      final userEmail = FirebaseAuth.instance.currentUser?.email;
+      if (userEmail == null) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Medication ID not found")),
+            const SnackBar(content: Text("User email not found")),
           );
-          return false;
         }
-
-        // Step 2: Construct the delete URL for the medication by its ID
-        final deleteUrl =
-            'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest/$medicationId';
-
-        // Send DELETE request to remove the medication
-        final deleteResponse = await http.delete(
-          Uri.parse(deleteUrl),
-          headers: {
-            'Authorization': 'Bearer ${token.accessToken}',
-            'Content-Type': 'application/fhir+json',
-          },
-        );
-
-        // Check the response status code
-        if (deleteResponse.statusCode == 204) {
-          print("Medication deleted successfully");
-          return true;
-        } else {
-          print("Failed to delete medication: ${deleteResponse.statusCode}");
-          print("Response Body: ${deleteResponse.body}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to delete medication")),
-          );
-          return false;
-        }
-      } else {
-        print("Failed to find medication: ${searchResponse.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Medication search failed")),
-        );
         return false;
       }
+
+      // First get the user's document ID from users collection
+      final userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: userEmail)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("User not found in database")),
+          );
+        }
+        return false;
+      }
+
+      final userDoc = userQuery.docs.first.id;
+
+      // Query the top-level medicationrequests collection
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('medicationRequests')
+          .where('userId', isEqualTo: userDoc)
+          .where('medicationInfo.name', isEqualTo: medicationName)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Medication not found")),
+          );
+        }
+        return false;
+      }
+
+      // Delete the medication document from medicationrequests collection
+      await FirebaseFirestore.instance
+          .collection('medicationRequests')
+          .doc(querySnapshot.docs.first.id)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Medication deleted successfully")),
+        );
+      }
+      return true;
+
     } catch (e) {
       print("Error deleting medication: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("An error occurred while deleting medication")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete medication: ${e.toString()}")),
+        );
+      }
       return false;
     }
   }
-
   Future<bool> _deleteFileFromCloud(String fileName) async {
     final token = await _currentUser!.authentication;
 
@@ -1117,11 +1140,11 @@ class _MyHealthPageState extends State<MyHealthPage> with SingleTickerProviderSt
 
 
 class AddMedicationPage extends StatefulWidget {
-  final String accessToken;
+
 
   const AddMedicationPage({
     Key? key,
-    required this.accessToken,
+
   }) : super(key: key);
 
   @override
@@ -1138,6 +1161,8 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   final _frequencyController = TextEditingController();
 
   bool _isLoading = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
 
   String _selectedUnit = 'tablet'; // Default dosage unit
   final List<String> _dosageUnits = ['tablet', 'mg', 'ml', 'capsule'];
@@ -1171,12 +1196,21 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
     });
 
     try {
-      final patientId = await _createPatient();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
+        throw Exception('User not found in Firestore');
+      }
+      final fullName = userDoc['fullName'];
+
+      final patientId = await _createPatient(fullName: fullName);
       if (patientId == null) {
         throw Exception('Failed to create patient');
       }
 
-      await _createMedicationRequest(patientId);
+      await _createMedicationRequest(medicationName: _medicationNameController.text,dosage:_dosageController.text,timeOfDay:_selectedTimeOfDay,beforeAfterFood:_selectedBeforeAfterFood,medicationNameController:_medicationNameController,dosageController:_dosageController);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Medication saved successfully')),
@@ -1195,226 +1229,403 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
     }
   }
 
-  Future<void> _createMedicationRequest(String patientId) async {
-    final medicationRequestUrl = 'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/MedicationRequest';
+  Future<void> _createMedicationRequest({
+    required String medicationName,
+    required String dosage,
+    required List<String> timeOfDay,
+    required String beforeAfterFood,
+    required TextEditingController medicationNameController,
+    required TextEditingController dosageController,
+  }) async {
+    try {
+      // Get current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found');
+      }
 
-    final medicationRequest = {
-      "resourceType": "MedicationRequest",
-      "status": "active",
-      "intent": "order",
-      "subject": {
-        "reference": "Patient/$patientId"
-      },
-      "medicationCodeableConcept": {
-        "text": _medicationNameController.text,
-        "coding": [
-          {
-            "system": "http://snomed.info/sct",
-            "display": _medicationNameController.text
+      // Create medication request document
+      final medicationRequest = {
+        'resourceType': 'MedicationRequest',
+        'status': 'active',
+        'intent': 'order',
+        'patientId': user.uid,
+        'medicationInfo': {
+          'name': medicationNameController.text,
+          'coding': {
+            'system': 'http://snomed.info/sct',
+            'display': medicationNameController.text
           }
-        ]
-      },
-      "dosageInstruction": [
-        {
-          "text": "${_dosageController.text} ${_selectedTimeOfDay.join(', ')}, ${_selectedBeforeAfterFood}",
-          "timing": {
-            "repeat": {
-              "frequency": 1,
-              "period": 1,
-              "periodUnit": "d"
-            }
-          }
-        }
-      ],
-      "requester": {
-        "reference": "Patient/$patientId"
-      },
-      "authoredOn": DateTime.now().toUtc().toIso8601String().split('.').first + "Z",
-      "priority": "routine"
-    };
+        },
+        'dosageInstruction': {
+          'text': '${dosageController.text} ${timeOfDay.join(', ')}, $beforeAfterFood',
+          'timing': {
+            'frequency': 1,
+            'period': 1,
+            'periodUnit': 'day'
+          },
+          'dosage': dosageController.text,
+          'timeOfDay': timeOfDay,
+          'foodTiming': beforeAfterFood
+        },
+        'requester': {
+          'id': user.uid,
+          'name': user.displayName ?? 'Unknown'
+        },
+        'authoredOn': FieldValue.serverTimestamp(),
+        'priority': 'routine',
+        'lastUpdated': FieldValue.serverTimestamp()
+      };
 
-    final response = await http.post(
-      Uri.parse(medicationRequestUrl),
-      headers: {
-        'Authorization': 'Bearer ${widget.accessToken}',
-        'Content-Type': 'application/fhir+json',
-      },
-      body: json.encode(medicationRequest),
-    );
+      // Add to Firestore
+      await _firestore
+          .collection('medicationRequests')
+          .add({
+        ...medicationRequest,
+        'userId': user.uid,
+      });
+      // Optionally, also add to a separate collection for all medication requests
+      // This can be useful for admin tracking or analytics
 
 
-    if (response.statusCode != 201) {
-      throw Exception('Failed to create medication request: ${response.statusCode}\nResponse: ${response.body}');
+    } catch (e) {
+      throw Exception('Failed to create medication request: $e');
     }
   }
 
-  Future<String?> _createPatient() async {
-    final patientUrl = 'https://healthcare.googleapis.com/v1/projects/healthcaremapapp-444513/locations/us-central1/datasets/health_records/fhirStores/my_fhir_store/fhir/Patient';
 
-    final nameParts = _patientNameController.text.split(' ');
-    final given = nameParts.first;
-    final family = nameParts.length > 1 ? nameParts.last : '';
+  Future<String> _createPatient({
+    required String fullName,
+    String gender = 'unknown',
+  }) async {
+    try {
+      // Get current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found');
+      }
 
-    final patientResource = {
-      "resourceType": "Patient",
-      "name": [
-        {
-          "use": "official",
-          "given": [given],
-          "family": family,
-          "text": _patientNameController.text
-        }
-      ],
-      "active": true,
-      "gender": "unknown",  // Optional, can be dynamically set if needed
-      "identifier": [
-        {
-          "system": "http://example.org/identifiers",
-          "value": "patient-${DateTime.now().millisecondsSinceEpoch}"
-        }
-      ]
-    };
+      // Split name into given and family names
+      final nameParts = fullName.split(' ');
+      final given = nameParts.first;
+      final family = nameParts.length > 1 ? nameParts.last : '';
 
-    final response = await http.post(
-      Uri.parse(patientUrl),
-      headers: {
-        'Authorization': 'Bearer ${widget.accessToken}',
-        'Content-Type': 'application/fhir+json',
-      },
-      body: json.encode(patientResource),
-    );
+      // Create patient document
+      final patientData = {
+        'resourceType': 'Patient',
+        'name': {
+          'use': 'official',
+          'given': given,
+          'family': family,
+          'fullName': fullName,
+        },
+        'active': true,
+        'gender': gender,
+        'identifier': {
+          'system': 'app.patient.identifier',
+          'value': 'patient-${DateTime.now().millisecondsSinceEpoch}',
+        },
+        'userId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'email': user.email,
+      };
 
-    if (response.statusCode == 201) {
-      final responseData = json.decode(response.body);
-      return responseData['id'];
-    } else {
-      throw Exception('Failed to create patient: ${response.statusCode}');
+      // Create the patient profile in Firestore
+      final docRef = await _firestore
+          .collection('patients')
+          .add(patientData);
+
+      // Also update the user's profile document
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'patientId': docRef.id,
+        'fullName': fullName,
+        'given': given,
+        'family': family,
+        'active': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Failed to create patient profile: $e');
     }
   }
+  Future<Map<String, dynamic>?> getPatientProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
+
+    final userDoc = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (!userDoc.exists) {
+      return null;
+    }
+
+    final patientId = userDoc.data()?['patientId'];
+    if (patientId == null) {
+      return null;
+    }
+
+    final patientDoc = await _firestore
+        .collection('patients')
+        .doc(patientId)
+        .get();
+
+    return patientDoc.data();
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Medication'),
-        elevation: 4, // Add shadow to AppBar
+        elevation: 2,
+        backgroundColor: Colors.grey[150],
+        foregroundColor: Colors.black,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _patientNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Patient Name',
-                  border: OutlineInputBorder(),
+          : Container(
+        decoration: BoxDecoration(
+          color: Color.fromRGBO(219, 239, 255, 1), // Changed background color
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  elevation: 2,
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Patient Information',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _patientNameController,
+                          decoration: InputDecoration(
+                            labelText: 'Patient Name',
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.person),
+                            filled: true,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter patient name';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter patient name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _medicationNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Medication Name',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 2,
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Medication Details',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _medicationNameController,
+                          decoration: InputDecoration(
+                            labelText: 'Medication Name',
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.medication),
+                            filled: true,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter medication name';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _dosageController,
+                          decoration: InputDecoration(
+                            labelText: 'Dosage',
+                            fillColor: Colors.white,
+                            hintText: 'e.g. 1 tablet',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.scale),
+                            filled: true,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter dosage';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter medication name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Dosage field
-              TextFormField(
-                controller: _dosageController,  // Bind controller here
-                decoration: const InputDecoration(
-                  labelText: 'Dosage (e.g. 1 tablet)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 2,
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Schedule',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _frequencyController,
+                          decoration: InputDecoration(
+                            fillColor: Colors.white,
+                            labelText: 'Frequency per Day',
+                            hintText: 'e.g. 1, 2, 3',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.repeat),
+                            filled: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            setState(() {
+                              _updateAvailableTimes();
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter frequency';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+
+                          color: Colors.white,
+                          child: Column(
+                            children: _timeOfDayOptions.map((time) {
+                              return CheckboxListTile(
+                                title: Text(time),
+                                checkColor: Colors.white,
+                                activeColor: Colors.blueAccent,
+                                value: _selectedTimeOfDay.contains(time),
+                                secondary: const Icon(Icons.access_time),
+                                onChanged: (bool? selected) {
+                                  setState(() {
+                                    // Make sure frequency is valid
+                                    int? frequency = int.tryParse(_frequencyController.text);
+                                    if (selected == true &&
+                                        frequency != null &&
+                                        _selectedTimeOfDay.length < frequency) {
+                                      _selectedTimeOfDay.add(time);
+                                    } else if (selected == false) {
+                                      _selectedTimeOfDay.remove(time);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: _selectedBeforeAfterFood,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedBeforeAfterFood = newValue!;
+                            });
+                          },
+                          items: _beforeAfterFoodOptions
+                              .map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          decoration: InputDecoration(
+                            fillColor: Colors.white,
+                            labelText: 'Before or After Food',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.restaurant),
+                            filled: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter dosage';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _frequencyController,
-                decoration: const InputDecoration(
-                  labelText: 'Frequency (e.g. 1, 2, 3, etc.)',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    _updateAvailableTimes();  // Update available times based on frequency
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter frequency';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Display time selection based on frequency
-              ..._timeOfDayOptions.map((time) {
-                return CheckboxListTile(
-                  title: Text(time),
-                  value: _selectedTimeOfDay.contains(time),
-                  onChanged: (bool? selected) {
-                    setState(() {
-                      // Allow selection if the limit is not reached
-                      if (selected == true && _selectedTimeOfDay.length < int.parse(_frequencyController.text)) {
-                        _selectedTimeOfDay.add(time);
-                      } else if (selected == false) {
-                        _selectedTimeOfDay.remove(time);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-              const SizedBox(height: 16),
-              // Food timing selection (before or after food)
-              DropdownButtonFormField<String>(
-                value: _selectedBeforeAfterFood,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedBeforeAfterFood = newValue!;
-                  });
-                },
-                items: _beforeAfterFoodOptions
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                decoration: const InputDecoration(
-                  labelText: 'Before or After Food',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveMedication,
-                child: const Text('Save Medication'),
-              ),
-            ],
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _saveMedication,
+
+                  label: const Text('Save Medication'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: Colors.blue, // Blue background color
+                  ),
+                )
+
+              ],
+            ),
           ),
         ),
       ),

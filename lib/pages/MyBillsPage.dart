@@ -204,7 +204,18 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
   Widget _buildReceiptsSection() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: ListView.builder(
+      child: _receipts.isEmpty
+          ? Center(
+        child: Text(
+          "No receipts found",
+          style: GoogleFonts.nunito(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.grey,
+          ),
+        ),
+      )
+          : ListView.builder(
         itemCount: _receipts.length, // Use the dynamic list of receipts
         itemBuilder: (context, index) {
           final receipt = _receipts[index];
@@ -220,7 +231,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
                   fontSize: 16,
                 ),
               ),
-
               onTap: () {
                 // Handle view receipt action
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +249,18 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
   Widget _buildPaidBillsSection() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: ListView.builder(
+      child: _bills.isEmpty
+          ? Center(
+        child: Text(
+          "No bills exists",
+          style: GoogleFonts.nunito(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.grey,
+          ),
+        ),
+      )
+          : ListView.builder(
         itemCount: _bills.length, // Use the dynamic list of receipts
         itemBuilder: (context, index) {
           final bill = _bills[index];
@@ -343,7 +364,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
 
   Future<void> _fetchUploadedReceipts() async {
     try {
-      // Get Google OAuth2 token
+      // Ensure the user is signed in
       GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -361,12 +382,15 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         return;
       }
-      api3='https://storage.googleapis.com/storage/v1/b/health_bills/o';
 
+      // Use the user's email as the folder name or fallback to "anonymous_user"
+      String userFolder = googleUser.email ?? 'anonymous_user';
 
+      // Define the API URL with the user folder to fetch only the files in their folder
+      String apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_bills/o?prefix=$userFolder/';
 
       final response = await http.get(
-        Uri.parse(api3),
+        Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer $accessToken', // Use the Google OAuth2 token
         },
@@ -375,9 +399,10 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         List<dynamic> items = jsonResponse['items'] ?? [];
+
         if (items.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("No files found in the bucket")),
+            const SnackBar(content: Text("No files found for this user")),
           );
           return;
         }
@@ -386,7 +411,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
           return {
             'fileName': item['name'] as String,
             'uploadDate': item['timeCreated'] as String,
-            // You can format or adjust the date if necessary
           };
         }).toList();
 
@@ -406,6 +430,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       );
     }
   }
+
   Future<void> _fetchUploadedBills() async {
     try {
       // Get Google OAuth2 token
@@ -426,24 +451,27 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         return;
       }
-      api4="https://storage.googleapis.com/storage/v1/b/health_bills1/o";
 
+      // Use the user's email as the folder name or fallback to "anonymous_user"
+      String userFolder = googleUser.email ?? 'anonymous_user';
 
+      // Define the API URL with the user folder to fetch only the files in their folder
+      String apiUrl = 'https://storage.googleapis.com/storage/v1/b/health_bills1/o?prefix=$userFolder/';
 
       final response = await http.get(
-        Uri.parse(api4),
+        Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer $accessToken', // Use the Google OAuth2 token
         },
       );
 
-
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         List<dynamic> items = jsonResponse['items'] ?? [];
+
         if (items.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("No files found in the bucket")),
+            const SnackBar(content: Text("No files found for this user")),
           );
           return;
         }
@@ -452,7 +480,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
           return {
             'fileName': item['name'] as String,
             'uploadDate': item['timeCreated'] as String,
-            // You can format or adjust the date if necessary
           };
         }).toList();
 
@@ -472,6 +499,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       );
     }
   }
+
 
   // Upload health record (PDF) to Google Cloud Storage
   Future<void> _uploadreceiptToGoogleCloudStorage() async {
@@ -510,8 +538,11 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
     // Read file bytes
     var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
 
-    // Generate a unique file name
-    String fileName = '${DateTime.now().millisecondsSinceEpoch}.pdf';
+    // Get user's folder name based on email or fallback to "anonymous_user"
+    String userFolder = _currentUser!.email ?? 'anonymous_user';
+
+    // Generate a unique file name within the user's folder
+    String fileName = '$userFolder/${DateTime.now().millisecondsSinceEpoch}.pdf';
 
     // Get access token
     final token = await _currentUser!.authentication;
@@ -522,6 +553,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       return;
     }
 
+    // Use the user's folder for uploading the receipt
     final apiUrl =
         'https://storage.googleapis.com/storage/v1/b/health_bills/o?uploadType=media&name=$fileName';
 
@@ -542,7 +574,6 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         );
         _fetchUploadedReceipts(); // Refresh the list of uploaded files
       } else {
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to upload PDF")),
         );
@@ -554,6 +585,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       );
     }
   }
+
   Future<void> _uploadPdfToGoogleCloudStorage() async {
     if (_currentUser == null) {
       await _signInWithGoogle();
@@ -565,6 +597,7 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       }
     }
 
+    // Pick a PDF file using File Picker
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -579,8 +612,14 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
 
     var file = result.files.single;
     var fileBytes = file.bytes ?? await File(file.path!).readAsBytes();
-    String fileName = '${DateTime.now().millisecondsSinceEpoch}.pdf';
 
+    // Get user's folder name based on email or fallback to "anonymous_user"
+    String userFolder = _currentUser!.email ?? 'anonymous_user';
+
+    // Generate a unique file name within the user's folder
+    String fileName = '$userFolder/${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    // Get access token
     final token = await _currentUser!.authentication;
     if (token.accessToken == null || token.accessToken!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -589,10 +628,12 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
       return;
     }
 
+    // Use the user's folder for uploading the PDF
     final apiUrl =
         'https://storage.googleapis.com/upload/storage/v1/b/health_bills1/o?uploadType=media&name=$fileName';
 
     try {
+      // Make the upload request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
@@ -602,21 +643,17 @@ class _MybillspageState extends State<Mybillspage> with SingleTickerProviderStat
         body: fileBytes,
       );
 
-
-
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("PDF uploaded successfully")),
         );
         _fetchUploadedBills(); // Refresh the list of uploaded files
       } else {
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to upload PDF")),
         );
       }
     } catch (e) {
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error uploading PDF")),
       );

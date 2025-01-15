@@ -20,6 +20,9 @@ import 'dart:async';
 import '/pages/YourTests.dart';
 import '/pages/YourCartPage.dart';
 import '/pages/YourOrdersPage.dart';
+import '/pages/FIndDonor.dart';
+
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -57,6 +60,7 @@ class _HomepageState extends State<Homepage> {
     {'image': 'assets/icons/tests.png', 'label': 'Book Tests'},
     {'image': 'assets/icons/pharmacy.png', 'label': 'Find Pharmacy'},
     {'image': 'assets/icons/medicine.png', 'label': 'Medications'},
+    {'image' : 'assets/icons/blood-bag.png', 'label' : 'Find Donor'}
   ];
 
   // Specialist types for GridView
@@ -76,11 +80,15 @@ class _HomepageState extends State<Homepage> {
   void initState() {
     super.initState();
     _getUserDetails(); // Fetch user details when the page is loaded
-    _startTypingAnimation(); // Start cycling through search placeholders
+    _startTypingAnimation();
+
+
+    // Timer to automatically scroll the list
 
     Provider.of<LocationProvider>(context, listen: false).getCurrentLocation();
     _fetchUserDetails();
   }
+
   Future<void> _fetchUserDetails() async {
     if (_currentUser != null) {
       try {
@@ -140,6 +148,8 @@ class _HomepageState extends State<Homepage> {
       }
     });
   }
+  ScrollController _scrollController = ScrollController();
+
 
 
 
@@ -232,6 +242,10 @@ class _HomepageState extends State<Homepage> {
     final mediaQuery = MediaQuery.of(context);
     final screenHeight = mediaQuery.size.height;
     final screenWidth = mediaQuery.size.width;
+
+
+
+
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -435,7 +449,10 @@ class _HomepageState extends State<Homepage> {
           IconButton(
             icon: const Icon(
                 Icons.notifications_none_outlined, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+
+
+            },
           ),
         ],
       ),
@@ -520,7 +537,10 @@ class _HomepageState extends State<Homepage> {
                 child: SizedBox(
                   height: screenHeight * 0.14,
                   child: ListView.builder(
+
+
                     scrollDirection: Axis.horizontal,
+
                     itemCount: _avatars.length,
                     itemBuilder: (context, index) {
                       return Padding(
@@ -552,6 +572,9 @@ class _HomepageState extends State<Homepage> {
                                 if(_avatars[index]['label']== 'Find Pharmacy'){
                                   Navigator.push(context, MaterialPageRoute(builder: (context)=>Findpharmacy()));
                                 }
+                                if(_avatars[index]['label']=='Find Donor'){
+                                  Navigator.push(context, MaterialPageRoute(builder: (context)=> Finddonor()));
+                                }
                                 // You can add similar navigation for other avatars as needed
                               },
                               child: CircleAvatar(
@@ -579,9 +602,13 @@ class _HomepageState extends State<Homepage> {
                       );
                     },
                   ),
+
                 ),
 
+
               ),
+             
+
               // Rectangular rounded container
               Padding(
                 padding:  EdgeInsets.symmetric(horizontal: screenWidth*0.038),
@@ -714,7 +741,9 @@ class _HomepageState extends State<Homepage> {
 
         ),
 
-      )),
+      ),
+
+      ),
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,

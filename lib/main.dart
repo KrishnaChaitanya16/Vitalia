@@ -6,6 +6,7 @@ import '/pages/LoginScreen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/pages/SplashScreen.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -40,7 +41,9 @@ class MyApp extends StatelessWidget {
       home: Splashscreen(),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+
         scaffoldBackgroundColor: Colors.white,
+
         appBarTheme: AppBarTheme(
           color: Colors.white
         ),
@@ -69,7 +72,9 @@ class MyApp extends StatelessWidget {
           backgroundColor: Colors.transparent,
 
 
-        )
+        ),
+
+
 
       ),
       builder: (context, child) {
